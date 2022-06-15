@@ -1,5 +1,6 @@
-import ai
 import click
+
+from app.ai import BaseGeneticAlgorithm
 
 
 @click.group()
@@ -16,4 +17,4 @@ def hello() -> None:
 @main.command()
 def test() -> None:
     """Test something"""
-    ai.AI().run()
+    BaseGeneticAlgorithm(50, 50, 50, 0.1, 0.1).run()

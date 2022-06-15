@@ -1,7 +1,7 @@
 from random import randint
 import unittest
 
-from app.ai import AI, CHROMOSOME_SIZE, Chromosome, Gene, Population
+from app.ai import BaseChromosome, BaseGene, BaseGeneticAlgorithm, BasePopulation, Chromosome, Gene
 
 class TestAI(unittest.TestCase):
     def assert_gene(self, gene:Gene):
@@ -19,7 +19,7 @@ class TestAI(unittest.TestCase):
         previous_rotate = 0
 
         for _ in range(50):
-            gene = Gene.random(gene)
+            gene = BaseGene.random(gene)
 
             self.assert_gene(gene)
             assert -15 <= gene.rotate - previous_rotate <= 15
@@ -29,7 +29,7 @@ class TestAI(unittest.TestCase):
 
 
     def test_gene_copy(self):
-        gene = Gene.random()
+        gene = BaseGene.random()
         copy = gene.copy()
         gene.power = -1
 
@@ -38,22 +38,22 @@ class TestAI(unittest.TestCase):
 
     
     def test_gene_crossover(self):
-        gene_1 = Gene.random()
-        gene_2 = Gene.random()
+        gene_1 = BaseGene.random()
+        gene_2 = BaseGene.random()
 
-        gene_3, gene_4 = Gene.crossover(1, 0, gene_1, gene_2)
+        gene_3, gene_4 = gene_1.crossover(1, 0, gene_2)
         assert str(gene_3) == str(gene_1)
         assert str(gene_4) == str(gene_2)
         self.assert_gene(gene_3)
         self.assert_gene(gene_4)
 
-        gene_3, gene_4 = Gene.crossover(0, 1, gene_1, gene_2)
+        gene_3, gene_4 = gene_1.crossover(0, 1, gene_2)
         assert str(gene_3) == str(gene_2)
         assert str(gene_4) == str(gene_1)
         self.assert_gene(gene_3)
         self.assert_gene(gene_4)
 
-        gene_3, gene_4 = Gene.crossover(0.5, 0.5, gene_1, gene_2)
+        gene_3, gene_4 = gene_1.crossover(0.5, 0.5, gene_2)
         assert gene_3.rotate == round((gene_1.rotate + gene_2.rotate) / 2)
         assert gene_3.power == round((gene_1.power + gene_2.power) / 2)
         assert gene_4.rotate == round((gene_1.rotate + gene_2.rotate) / 2)
@@ -63,7 +63,7 @@ class TestAI(unittest.TestCase):
 
 
     def test_gene_mutate(self):
-        gene = Gene.random()
+        gene = BaseGene.random()
         gene.mutate(None)
 
         self.assert_gene(gene)
@@ -71,17 +71,17 @@ class TestAI(unittest.TestCase):
 
     def test_chromosome_random(self):
         generation = randint(0,10)
-        chromosome = Chromosome.random(generation)
+        chromosome = BaseChromosome.random(generation, 10)
 
         self.assert_chromosome(chromosome)
         assert chromosome.generation == generation
         assert len(set(chromosome.genes)) > 1
         assert len(set([str(gene) for gene in chromosome.genes])) > 1
-        assert chromosome.run(CHROMOSOME_SIZE-1) == str(chromosome.genes[-1])
+        assert chromosome.run(9) == str(chromosome.genes[-1])
 
 
     def test_chromosome_copy(self):
-        chromosome = Chromosome.random(0)
+        chromosome = BaseChromosome.random(0, 10)
         copy = chromosome.copy()
         chromosome.genes[0].power = -1
 
@@ -90,9 +90,9 @@ class TestAI(unittest.TestCase):
 
     
     def test_chromosome_crossover(self):
-        chromosome_1 = Chromosome.random(0)
-        chromosome_2 = Chromosome.random(0)
-        chromosome_3, chromosome_4 = Chromosome.crossover(1, chromosome_1, chromosome_2)
+        chromosome_1 = BaseChromosome.random(0, 10)
+        chromosome_2 = BaseChromosome.random(0, 10)
+        chromosome_3, chromosome_4 = chromosome_1.crossover(1, chromosome_2)
         chromosome_1.genes[0].power = -1
         chromosome_2.genes[0].power = -1
 
@@ -101,7 +101,7 @@ class TestAI(unittest.TestCase):
 
 
     def test_chromosome_mutate(self):
-        chromosome = Chromosome.random(0)
+        chromosome = BaseChromosome.random(0, 10)
         copy = chromosome.copy()
         for _ in range(50):
             chromosome.mutate()
@@ -111,7 +111,7 @@ class TestAI(unittest.TestCase):
 
 
     def test_population_random(self):
-        population = Population.random()
+        population = BasePopulation.random(10, 10)
 
         assert population.generation == 0
         assert len(set(population.chromosomes)) > 1
@@ -119,17 +119,17 @@ class TestAI(unittest.TestCase):
 
 
     def test_population_copy(self):
-        population = Population.random()
+        population = BasePopulation.random(10, 10)
         copy = population.copy()
         population.chromosomes[0].genes[0].power = -1
 
         assert copy.chromosomes[0].genes[0].power != -1
 
     
-    def test_ai_sort(self):
-        population = Population.random()
-        _,pool = AI().sort(reversed(range(len(population.chromosomes))), population)
-        _,pool_reversed = AI().sort(range(len(population.chromosomes)), population)
+    def test_genetic_algorithm_sort(self):
+        population = BasePopulation.random(10, 10)
+        _,pool = BaseGeneticAlgorithm().sort(reversed(range(len(population.chromosomes))), population)
+        _,pool_reversed = BaseGeneticAlgorithm().sort(range(len(population.chromosomes)), population)
 
         assert population.chromosomes == [chromosome for chromosome in pool]
         assert population.chromosomes == [chromosome for chromosome in reversed(pool_reversed)]
