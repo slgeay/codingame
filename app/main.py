@@ -1,6 +1,6 @@
 import click
 
-from app.ai import BaseGeneticAlgorithm
+from app.ai import LanderGeneticAlgorithm, LanderSimulation
 
 
 @click.group()
@@ -15,6 +15,13 @@ def hello() -> None:
 
 
 @main.command()
-def test() -> None:
+def test_genetic() -> None:
     """Test something"""
-    BaseGeneticAlgorithm(50, 50, 50, 0.1, 0.1).run()
+    LanderGeneticAlgorithm(50, 50, 50, 0.1, 0.1).run()
+
+
+@main.command()
+def test_simulation() -> None:
+    """Test something"""
+    for _ in range(10):
+        print(LanderSimulation())

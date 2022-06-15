@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from math import ceil
 from random import randint, random, uniform
 from typing import Generic, List, Optional, Tuple, TypeVar
 
@@ -196,7 +197,7 @@ class GeneticAlgorithm(Generic[P]):
         for generation in range(1, self.generation_size + 1):
             self.select()
             self.reproduce_and_mutate(generation)
-        # print(self.populations)
+        print(self.populations[-1].chromosomes[0])
 
     def initialize(self) -> None:
         self.populations = [
@@ -254,7 +255,20 @@ class GeneticAlgorithm(Generic[P]):
         self.populations.append(self._P()(generation, new_population))
 
 
-class BaseGene(Gene):
+SURFACE_N_MIN, SURFACE_N_MAX = 2, 29
+X_MIN, X_MAX = 0, 6999
+Y_MIN, Y_MAX = 0, 2999
+SPEED_MIN, SPEED_MAX = -499, 499
+FUEL_MIN, FUEL_MAX = 0, 2000
+ROTATE_MIN, ROTATE_MAX = -90, 90
+ROTATE_DELTA_MIN, ROTATE_DELTA_MAX = -15, 15
+POWER_MIN, POWER_MAX = 0, 4
+POWER_DELTA_MIN, POWER_DELTA_MAX = -1, 1
+FIRST_ROUND_TIME = 1000
+ROUND_TIME = 100
+
+
+class LanderGene(Gene):
     rotate: int
     power: int
 
@@ -263,35 +277,44 @@ class BaseGene(Gene):
         self.power = power
 
     @classmethod
-    def random(cls, previous: Optional[Gene] = None) -> BaseGene:
-        assert previous is None or isinstance(previous, BaseGene)
+    def random(cls, previous: Optional[Gene] = None) -> LanderGene:
+        assert previous is None or isinstance(previous, LanderGene)
         return cls(cls.random_rotate(previous), cls.random_power(previous))
 
     @classmethod
     def random_rotate(cls, previous: Optional[Gene] = None) -> int:
-        assert previous is None or isinstance(previous, BaseGene)
+        assert previous is None or isinstance(previous, LanderGene)
         return min(
-            90,
-            max(-90, randint(-15, 15) + (0 if previous is None else previous.rotate)),
+            ROTATE_MAX,
+            max(
+                ROTATE_MIN,
+                randint(ROTATE_DELTA_MIN, ROTATE_DELTA_MAX)
+                + (0 if previous is None else previous.rotate),
+            ),
         )
 
     @classmethod
     def random_power(cls, previous: Optional[Gene] = None) -> int:
-        assert previous is None or isinstance(previous, BaseGene)
+        assert previous is None or isinstance(previous, LanderGene)
         return min(
-            0, max(4, randint(-1, 1) + (0 if previous is None else previous.power))
+            POWER_MIN,
+            max(
+                POWER_MAX,
+                randint(POWER_DELTA_MIN, POWER_DELTA_MAX)
+                + (0 if previous is None else previous.power),
+            ),
         )
 
     def __str__(self) -> str:
         return f"{self.rotate} {self.power}"
 
-    def copy(self) -> BaseGene:
+    def copy(self) -> LanderGene:
         return self.__class__(rotate=self.rotate, power=self.power)
 
     def crossover(
         self, weight: float, inv_weight: float, gene_2: Gene
-    ) -> Tuple[BaseGene, BaseGene]:
-        assert gene_2 is None or isinstance(gene_2, BaseGene)
+    ) -> Tuple[LanderGene, LanderGene]:
+        assert gene_2 is None or isinstance(gene_2, LanderGene)
         return self.__class__(
             round(self.rotate * weight + gene_2.rotate * inv_weight),
             round(self.power * weight + gene_2.power * inv_weight),
@@ -301,22 +324,111 @@ class BaseGene(Gene):
         )
 
     def mutate(self, previous: Optional[Gene] = None) -> None:
-        assert previous is None or isinstance(previous, BaseGene)
-        self.rotate = BaseGene.random_rotate(previous)
-        self.power = BaseGene.random_power(previous)
+        assert previous is None or isinstance(previous, LanderGene)
+        self.rotate = LanderGene.random_rotate(previous)
+        self.power = LanderGene.random_power(previous)
 
 
-class BaseChromosome(Chromosome[BaseGene]):
+class LanderChromosome(Chromosome[LanderGene]):
     pass
 
 
-class BasePopulation(Population[BaseChromosome]):
+class LanderPopulation(Population[LanderChromosome]):
     pass
 
 
-class BaseGeneticAlgorithm(GeneticAlgorithm[BasePopulation]):
+class LanderGeneticAlgorithm(GeneticAlgorithm[LanderPopulation]):
     def get_score(self, chromosome: Chromosome) -> float:
-        assert isinstance(chromosome, BaseChromosome)
+        assert isinstance(chromosome, LanderChromosome)
         return sum(
             [gene.rotate + gene.power for gene in chromosome.genes]
         )  # todo: change
+
+
+class LanderSimulation(Generic[C]):
+    land: List[Tuple[int, int]]
+
+    @classmethod
+    def _C(cls) -> type[C]:
+        return generic_arg(cls, 0)
+
+    def __init__(
+        self,
+        land: List[Tuple[int, int]] = [],
+        x: int = 0,
+        y: int = 0,
+        h_speed: int = 0,
+        v_speed: int = 0,
+        fuel: int = 0,
+        rotate: int = 0,
+        power: int = 0,
+    ):
+        if land:
+            self.land = land
+            self.x = x
+            self.y = y
+            self.h_speed = h_speed
+            self.v_speed = v_speed
+            self.fuel = fuel
+            self.rotate = rotate
+            self.power = power
+        else:
+            self.land = self.random_land()
+            self.x = randint(X_MIN, X_MAX)
+            self.y = randint(ceil(self.get_land_y(x)), X_MAX)
+            self.h_speed = randint(SPEED_MIN, SPEED_MAX)
+            self.v_speed = randint(SPEED_MIN, SPEED_MAX)
+            self.fuel = randint(FUEL_MIN, FUEL_MAX)
+            self.rotate = randint(ROTATE_MIN, ROTATE_MAX)
+            self.power = randint(POWER_MIN, POWER_MAX)
+
+    def __str__(self) -> str:
+        return f"{self.land}\n{self.x} {self.y} {self.h_speed} {self.v_speed} {self.fuel} {self.rotate} {self.power}"
+
+    @classmethod
+    def random_land(cls) -> List[Tuple[int, int]]:
+        # No cave
+        land = []
+        size = randint(SURFACE_N_MIN, SURFACE_N_MAX)
+        flat = randint(SURFACE_N_MIN, size) - 1
+        land.append((X_MIN, randint(Y_MIN, Y_MAX)))
+        for i in range(1, size - 1):
+            land.append(
+                (
+                    randint(land[-1][0] + 10, X_MAX - 10 * (size - i)),
+                    cls.random_y(i == flat, land[-1][1]),
+                )
+            )
+        land.append((X_MAX, cls.random_y(size - 1 == flat, land[-1][1])))
+        return land
+
+    def get_land_y(self, x):
+        for i in range(len(self.land)):
+            if self.land[i][0] == x:
+                return self.land[i][1]
+            elif self.land[i][0] > x:
+                return self.land[i - 1][1] + (x - self.land[i - 1][0]) * (
+                    self.land[i][1] - self.land[i - 1][1]
+                ) / (self.land[i][0] - self.land[i - 1][0])
+        assert False
+
+    @classmethod
+    def random_y(cls, flat: bool, previous_y: int):
+        return (
+            previous_y
+            if flat
+            else randint(Y_MIN, Y_MAX - 1)
+            if previous_y == Y_MAX
+            else randint(Y_MIN + 1, Y_MAX)
+            if previous_y == Y_MIN
+            else choice(
+                [randint(Y_MIN, previous_y - 1), randint(previous_y + 1, Y_MAX)],
+                p=[
+                    previous_y / (Y_MAX - Y_MIN + 1),
+                    1 - previous_y / (Y_MAX - Y_MIN + 1),
+                ],
+            )
+        )
+
+    def run(self):
+        pass
