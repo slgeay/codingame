@@ -4,6 +4,8 @@ from typing import List
 import operator
 from random import randint
 
+print(str(sys.argv[1]))
+
 
 # Complete the hackathon before your opponent by following the principles of Green IT
 class Application:
@@ -94,6 +96,7 @@ while True:
     possible_moves = {}
     for i in range(possible_moves_count):
         possible_move = input()
+        print(possible_move, file=sys.stderr, flush=True)
         if len(possible_move.split()) > 1:
             possible_moves[possible_move.split()[1]] = True
     print(possible_moves, file=sys.stderr, flush=True)
