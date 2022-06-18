@@ -91,12 +91,12 @@ while True:
         cards.technical_debt_cards_count = int(inputs[10])
         cardss[cards.cards_location] = cards
     possible_moves_count = int(input())
-    possible_moves = []
+    possible_moves = {}
     for i in range(possible_moves_count):
         possible_move = input()
         if len(possible_move.split()) > 1:
-            possible_moves.append(possible_move.split()[1])
-    #print(possible_moves, file=sys.stderr, flush=True)
+            possible_moves[possible_move.split()[1]] = True
+    print(possible_moves, file=sys.stderr, flush=True)
 
     # Write an action using print
     # To debug: print("Debug messages...", file=sys.stderr, flush=True)
@@ -125,6 +125,8 @@ while True:
         else:
             print(f'MOVE {(player_location + 1) % 8}')
     elif game_phase == "RELEASE":
+        scores = {key:value for (key,value) in scores.items() if possible_moves.get(key)}
+        print(scores, file=sys.stderr, flush=True)
         if scores:
             best = max(scores.items(), key=operator.itemgetter(1))
             if best[1] >= threshold:
