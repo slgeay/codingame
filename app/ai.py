@@ -36,7 +36,7 @@ class Cards:
     cards : List[int]
 
 
-threshold = randint(0,6)
+threshold = randint(0,3)
 
 # game loop
 while True:
@@ -47,7 +47,7 @@ while True:
     for i in range(applications_count):
         app = Application()
         inputs = input().split()
-        #print(inputs, file=sys.stderr, flush=True)
+        print(inputs, file=sys.stderr, flush=True)
         app.object_type = inputs[0]
         app._id = int(inputs[1])
         app.tasks = [int(inp) for inp in inputs[2:10]]
@@ -94,7 +94,7 @@ while True:
     possible_moves = []
     for i in range(possible_moves_count):
         possible_move = input()
-        if possible_move != "WAIT" and possible_move != "RANDOM":
+        if len(possible_move.split()) > 1:
             possible_moves.append(possible_move.split()[1])
     #print(possible_moves, file=sys.stderr, flush=True)
 
@@ -109,16 +109,18 @@ while True:
 
     # In the first league: RANDOM | MOVE <zoneId> | RELEASE <applicationId> | WAIT; In later leagues: | GIVE <cardType> | THROW <cardType> | TRAINING | CODING | DAILY_ROUTINE | TASK_PRIORITIZATION <cardTypeToThrow> <cardTypeToTake> | ARCHITECTURE_STUDY | CONTINUOUS_DELIVERY <cardTypeToAutomate> | CODE_REVIEW | REFACTORING;
     if game_phase == "MOVE":
-        scores = {key:value for (key,value) in scores.items() if value < 6}
+        scores = {key:value for (key,value) in scores.items() if value < 8}
         if scores:
-            needed = {key:value for (key,value) in enumerate(applications[max(scores.items(), key=operator.itemgetter(1))[0]].tasks) if value > 0 and key != player_location}
+            needed = {key:value for (key,value) in enumerate(applications[max(scores.items(), key=operator.itemgetter(1))[0]].tasks) if value > 0 and key != player_location and key != other_player_location and key != (other_player_location - 1) % 8 and key != (other_player_location + 1) % 8}
             has = {key:value for (key,value) in enumerate(cardss["HAND"].cards) if needed.get(key)}
             print((needed, has), file=sys.stderr, flush=True)
 
             if has:
                 print(f'MOVE {min(has, key=has.get)}')
-            else:
+            elif needed:
                 print(f'MOVE {needed.keys()[0]}')
+            else:
+                print(f'MOVE {(player_location + 1) % 8}')
 
         else:
             print(f'MOVE {(player_location + 1) % 8}')
