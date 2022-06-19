@@ -1,7 +1,8 @@
-from random import uniform
 import subprocess
-from ai import GreenCircleAI
+from random import randint
+
 import click
+from ai import GreenCircleAI
 from genetic_algorithm import GreenCircleGeneticAlgorithm
 
 
@@ -18,10 +19,18 @@ def hello() -> None:
 
 @main.command()
 def launch() -> None:
-    """Show a little welcome message!"""
-    # cd /home/sebastien/github/CodinGame-thirdparty/GreenCircle
-    # /usr/bin/env /usr/lib/jvm/java-8-openjdk-amd64/bin/java -cp /tmp/cp_7wdcdfymzs7kpssaoh0wot2cw.jar SkeletonMain 
-    result = subprocess.run(["/usr/lib/jvm/java-8-openjdk-amd64/bin/java", "-cp", "/tmp/cp_7wdcdfymzs7kpssaoh0wot2cw.jar", "SkeletonMain", "Toto", "Titi"], stdout=subprocess.PIPE)
+    """Test to launch the Game Engine"""
+    result = subprocess.run(
+        [
+            "/usr/lib/jvm/java-8-openjdk-amd64/bin/java",
+            "-cp",
+            "/tmp/cp_7wdcdfymzs7kpssaoh0wot2cw.jar",
+            "SkeletonMain",
+            "Toto",
+            "Titi",
+        ],
+        stdout=subprocess.PIPE,
+    )
     print(result)
     # score = int(result.stdout.decode('utf-8').splitlines()[-1])
     # print(score)
@@ -31,8 +40,11 @@ def launch() -> None:
 
 @main.command()
 def compete() -> None:
+    """Launch the competition"""
     GreenCircleGeneticAlgorithm().run()
+
 
 @main.command()
 def test() -> None:
-    GreenCircleAI([uniform(0, 1) for _ in range(36315)])
+    """Test to create a AI"""
+    GreenCircleAI([randint(-99, 99) for _ in range(34848)])

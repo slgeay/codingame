@@ -1,20 +1,30 @@
 from __future__ import annotations
+
+import re
 import sys
-import math
-from typing import List
-import operator
-from random import randint
+from enum import Enum
+from typing import Dict, List, Optional, Tuple
 
 
+def debug(message: str) -> None:
+    return
+    # print(message, file=sys.stderr, flush=True)
+    # print_stack(file=sys.stderr)
+
+
+def my_assert(condition: bool, message: Optional[str] = None) -> None:
+    return
+    # if not condition:
+    #     debug(message)
 
 
 class Neuron:
-    weights: List[float]
+    weights: List[int]
 
-    def __init__(self, weights: List[float]) -> None:
+    def __init__(self, weights: List[int]) -> None:
         self.weights = weights
 
-    def calculate_output(self, inputs: List[float]) -> float:
+    def calculate_output(self, inputs: List[int]) -> int:
         return sum(map(lambda x: x[0] * x[1], zip(inputs, self.weights)))
 
     def __str__(self) -> str:
@@ -23,7 +33,7 @@ class Neuron:
     def __repr__(self) -> str:
         return str(self)
 
-    
+
 class Layer:
     depth: int
     neurons: List[Neuron]
@@ -32,7 +42,7 @@ class Layer:
         self.depth = depth
         self.neurons = neurons
 
-    def calculate_output(self, inputs: List[float]) -> List[float]:
+    def calculate_output(self, inputs: List[int]) -> List[int]:
         return [neuron.calculate_output(inputs) for neuron in self.neurons]
 
     def __str__(self) -> str:
@@ -42,194 +52,347 @@ class Layer:
         return str(self)
 
 
+def compute_synapses_count(
+    inputs_count: int, hiddens_counts: List[int], outputs_count: int
+) -> int:
+    return (
+        inputs_count * hiddens_counts[0]
+        + sum(map(lambda x: x[0] * x[1], zip(hiddens_counts, hiddens_counts[1:])))
+        + hiddens_counts[-1] * outputs_count
+    )
+
+
 class NeuralNetwork:
     layers: List[Layer]
 
-    def __init__(self, layers: List[Layer]) -> None:
-        self.layers = layers
+    def __init__(
+        self,
+        weights: List[int],
+        inputs_count: int,
+        hiddens_counts: List[int],
+        outputs_count: int,
+    ) -> None:
+        synapses_count = compute_synapses_count(
+            inputs_count, hiddens_counts, outputs_count
+        )
+        my_assert(
+            (len(weights) == synapses_count),
+            f"Weights count ({len(weights)}) does not match the expected count ({synapses_count})",
+        )
 
-    def calculate_output(self, input: List[float]) -> List[float]:
+        self.layers = []
+        for layer_index in range(len(hiddens_counts) + 1):
+            neurons = []
+            if layer_index == 0:
+                neurons = [
+                    Neuron(
+                        weights[
+                            # fmt: off
+                            neuron_index * inputs_count
+                            : (neuron_index + 1) * inputs_count
+                            # fmt: on
+                        ]
+                    )
+                    for neuron_index in range(hiddens_counts[layer_index])
+                ]
+                shift = inputs_count * hiddens_counts[layer_index]
+            elif layer_index < len(hiddens_counts):
+                neurons = [
+                    Neuron(
+                        weights[
+                            # fmt: off
+                            shift + neuron_index * hiddens_counts[layer_index - 1]
+                            : shift + (neuron_index + 1) * hiddens_counts[layer_index - 1]
+                            # fmt: on
+                        ]
+                    )
+                    for neuron_index in range(hiddens_counts[layer_index])
+                ]
+                shift += hiddens_counts[layer_index - 1] * hiddens_counts[layer_index]
+            else:
+                neurons = [
+                    Neuron(
+                        weights[
+                            # fmt: off
+                            shift + neuron_index * hiddens_counts[layer_index - 1]
+                            : shift + (neuron_index + 1) * hiddens_counts[layer_index - 1]
+                            # fmt: on
+                        ]
+                    )
+                    for neuron_index in range(outputs_count)
+                ]
+                shift += hiddens_counts[layer_index - 1] * outputs_count
+            self.layers.append(Layer(layer_index + 1, neurons))
+
+        my_assert(shift == len(weights), f"shift {shift} != weights {len(weights)}")
+
+    def calculate_output(self, input: List[int]) -> List[int]:
         inout = input
         for layer in self.layers:
             inout = layer.calculate_output(inout)
+
         return inout
 
     def __str__(self) -> str:
-        return "\n".join(self.layers)
+        return "\n".join((str(layer) for layer in self.layers))
 
     def __repr__(self) -> str:
         return str(self)
 
 
-# 187 inputs, 82 outputs, 1 hidden layer with 135 neurons
-INPUTS = 187
-HIDDEN = [135]
-OUTPUT = 82
+def compute_best_hiddens_counts(
+    inputs_count: int, outputs_count: int, layers_count
+) -> List[int]:
+    return [
+        inputs_count
+        + (layer_index + 1) * (outputs_count - inputs_count) // (layers_count + 1)
+        for layer_index in range(layers_count)
+    ]
+
+
+# 188 inputs, 78 outputs, 1 hidden layer
+INPUTS_COUNT = 188
+OUTPUTS_COUNT = 76
+HIDDEN_LAYERS_COUNT = 1
+HIDDENS_COUNTS = compute_best_hiddens_counts(
+    INPUTS_COUNT, OUTPUTS_COUNT, HIDDEN_LAYERS_COUNT
+)
+SYNAPSES_COUNT = compute_synapses_count(INPUTS_COUNT, HIDDENS_COUNTS, OUTPUTS_COUNT)
+
+APPLICATIONS_COUNT = 12
+TASKS_COUNT = 8
+CARDS_LOCATIONS_COUNT = 6
+PLAYERS_COUNT = 2
+APPLICATIONS_TO_WIN = 5
+
+
+class Game_Phase(Enum):
+    MOVE = 0
+    GIVE_CARD = 1
+    THROW_CARD = 2
+    PLAY_CARD = 3
+    RELEASE = 4
+
+
+class Action(Enum):
+    RANDOM = 0
+    WAIT = 1
+    MOVE = 2
+    GIVE = MOVE + 2 * TASKS_COUNT
+    THROW = GIVE + TASKS_COUNT
+    TRAINING = THROW + TASKS_COUNT
+    CODING = TRAINING + 1
+    DAILY_ROUTINE = CODING + 1
+    TASK_PRIORITIZATION = DAILY_ROUTINE + 1
+    ARCHITECTURE_STUDY = TASK_PRIORITIZATION + 2 * TASKS_COUNT
+    CONTINUOUS_INTEGRATION = ARCHITECTURE_STUDY + 1
+    CODE_REVIEW = CONTINUOUS_INTEGRATION + TASKS_COUNT
+    REFACTORING = CODE_REVIEW + 1
+    RELEASE = REFACTORING + 1
+
+
+my_assert(
+    (Action.RELEASE.value + APPLICATIONS_COUNT == OUTPUTS_COUNT),
+    f"{Action.RELEASE.value} + {APPLICATIONS_COUNT} != {OUTPUTS_COUNT}",
+)
+
 
 class GreenCircleAI:
     neural_network: NeuralNetwork
 
-    def __init__(self, weights) -> None:
+    def __init__(self, weights: List[int]) -> None:
+        self.neural_network = NeuralNetwork(
+            weights, INPUTS_COUNT, HIDDENS_COUNTS, OUTPUTS_COUNT
+        )
 
-        # Create the neural network
-        layers = []
-        for l in range(len(HIDDEN) + 1):
-            neurons = []
-            if l == 0:
-                neurons = [Neuron(weights[n * INPUTS:(n + 1) * INPUTS]) for n in range(HIDDEN[l])]
-                shift = INPUTS*HIDDEN[l]
-            elif l < len(HIDDEN):
-                neurons = [Neuron(weights[shift + n * HIDDEN[l-1]:shift + (n + 1) * HIDDEN[l-1]]) for n in range(HIDDEN[l])]
-                shift += HIDDEN[l-1]*HIDDEN[l]
+        my_assert(len(self.neural_network.layers) == len(HIDDENS_COUNTS) + 1)
+        for layer_index in range(len(HIDDENS_COUNTS) + 1):
+            my_assert(
+                len(self.neural_network.layers[layer_index].neurons)
+                == (
+                    HIDDENS_COUNTS[layer_index]
+                    if layer_index < len(HIDDENS_COUNTS)
+                    else OUTPUTS_COUNT
+                )
+            )
+            my_assert(
+                len(self.neural_network.layers[layer_index].neurons[0].weights)
+                == (
+                    HIDDENS_COUNTS[layer_index - 1] if layer_index > 0 else INPUTS_COUNT
+                )
+            )
+
+    def prepare_inputs(self) -> Tuple[List[int], Dict[int, int], Dict[str, bool]]:
+        ai_inputs = []
+
+        ai_inputs.append(1)  # bias
+
+        game_phase = input()  # can be MOVE, GIVE_CARD, THROW_CARD, PLAY_CARD or RELEASE
+        for i in range(len(Game_Phase)):
+            ai_inputs.append(1 if game_phase == Game_Phase(i).name else 0)
+
+        applications_count = int(input())
+        applications: Dict[int, int] = {}
+        for i in range(applications_count):
+            # object_type: always APPLICATION
+            # id : id of the application
+            # training_needed: number of TRAINING skills needed
+            # coding_needed: number of CODING skills needed
+            # daily_routine_needed: number of DAILY_ROUTINE skills needed
+            # task_prioritization_needed: number of TASK_PRIORITIZATION skills needed
+            # architecture_study_needed: number of ARCHITECTURE_STUDY skills needed
+            # continuous_delivery_needed: number of CONTINUOUS_DELIVERY skills needed
+            # code_review_needed: number of CODE_REVIEW skills needed
+            # refactoring_needed: number of REFACTORING skills needed
+            inputs = input().split()
+
+            applications[int(inputs[1])] = i
+            ai_inputs.extend([int(inp) for inp in inputs[2:]])
+
+        ai_inputs.extend([0] * TASKS_COUNT * (APPLICATIONS_COUNT - applications_count))
+
+        for i in range(PLAYERS_COUNT):
+            # player_location: id of the zone in which the player is located
+            # player_score: number of points scored by the player
+            # player_permanent_daily_routine_cards: number of DAILY_ROUTINE played
+            # player_permanent_architecture_study_cards: number of ARCHITECTURE_STUDY played
+            inputs = input().split()
+            player_location = int(inputs[0])
+            for i in range(-1, TASKS_COUNT):
+                ai_inputs.append(1 if player_location == i else 0)
+
+            player_score = int(inputs[1])
+            ai_inputs.append(player_score)
+            correct_tasks_only = 1 if player_score == APPLICATIONS_TO_WIN - 1 else 0
+            ai_inputs.append(correct_tasks_only)
+            ai_inputs.extend([int(inp) for inp in inputs[2:]])
+
+        card_locations_count = int(input())
+        for i in range(card_locations_count):
+            # cards_location: the location of the card list.
+            # It can be HAND, DRAW, DISCARD, OPPONENT_CARDS, AUTOMATED and OPPONENT_AUTOMATED
+            # training_cards_count: number of TRAINING cards
+            # coding_cards_count: number of CODING cards
+            # daily_routine_cards_count: number of DAILY_ROUTINE cards
+            # task_prioritization_cards_count: number of TASK_PRIORITIZATION cards
+            # architecture_study_cards_count: number of ARCHITECTURE_STUDY cards
+            # continuous_delivery_cards_count: number of CONTINUOUS_DELIVERY cards
+            # code_review_cards_count: number of CODE_REVIEW cards
+            # refactoring_cards_count: number of REFACTORING cards
+            # bonus_cards_count: number of BONUS cards
+            # technical_debt_cards_count: number of TECHNICAL_DEBT cards
+            ai_inputs.extend([int(inp) for inp in input().split()[1:]])
+
+        ai_inputs.extend(
+            [0] * (TASKS_COUNT + 2) * (CARDS_LOCATIONS_COUNT - card_locations_count)
+        )
+
+        possible_actions_count = int(input())
+        possible_actions = {}
+        for i in range(possible_actions_count):
+            possible_action = input()
+            possible_actions[possible_action] = True
+
+        my_assert(len(ai_inputs) == INPUTS_COUNT, f"{len(ai_inputs)} != {INPUTS_COUNT}")
+
+        return ai_inputs, applications, possible_actions
+
+    def act(
+        self,
+        ai_outputs: List[int],
+        applications: Dict[int, int],
+        possible_actions: Dict[str, bool],
+    ) -> None:
+        my_assert(
+            len(ai_outputs) == OUTPUTS_COUNT, f"{len(ai_outputs)} != {OUTPUTS_COUNT}"
+        )
+
+        possible_action_scores = {}
+        for possible_action in possible_actions:
+            for action in Action:
+                if possible_action == action.name:
+                    # p(<Action>) = output(<Action>)
+                    possible_action_scores[possible_action] = ai_outputs[action.value]
+                    break
             else:
-                neurons = [Neuron(weights[shift + n * HIDDEN[l-1]:shift + (n + 1) * HIDDEN[l-1]]) for n in range(OUTPUT)]
-                shift += HIDDEN[l-1]*OUTPUT
-            layers.append(Layer(l + 1, neurons))
+                possible_action_words = possible_action.split()
+                if possible_action_words[0] == Action.MOVE.name:
+                    if len(possible_action_words) == 2:
+                        # p(MOVE <zone>) = p(MOVE <zone> <zone>)
+                        possible_action_words.append(possible_action_words[1])
 
-        self.neural_network = NeuralNetwork(layers)
-        assert shift == len(weights), f"shift {shift} != weights {len(weights)}"
+                    # p(MOVE <zone> <cardTypeToTake>) =
+                    #     output(MOVE <zone>) * output(MOVE <cardTypeToTake>)
+                    possible_action_scores[possible_action] = (
+                        ai_outputs[Action.MOVE.value + int(possible_action_words[1])]
+                        * ai_outputs[
+                            Action.MOVE.value
+                            + TASKS_COUNT
+                            + int(possible_action_words[2])
+                        ]
+                    )
+                elif possible_action_words[0] == Action.GIVE.name:
+                    # p(GIVE <cardType>) = output(GIVE <cardType>)
+                    possible_action_scores[possible_action] = ai_outputs[
+                        Action.GIVE.value + int(possible_action_words[1])
+                    ]
+                elif possible_action_words[0] == Action.THROW.name:
+                    # p(THROW <cardType>) = output(THROW <cardType>)
+                    possible_action_scores[possible_action] = ai_outputs[
+                        Action.THROW.value + int(possible_action_words[1])
+                    ]
+                elif possible_action_words[0] == Action.TASK_PRIORITIZATION.name:
+                    # p(TASK_PRIORITIZATION <cardTypeToThrow> <cardTypeToTake>) =
+                    #     output(TASK_PRIORITIZATION <cardTypeToThrow>)
+                    #     * output(TASK_PRIORITIZATION <cardTypeToTake>)
+                    possible_action_scores[possible_action] = (
+                        ai_outputs[
+                            Action.TASK_PRIORITIZATION.value
+                            + int(possible_action_words[1])
+                        ]
+                        * ai_outputs[
+                            Action.TASK_PRIORITIZATION.value
+                            + TASKS_COUNT
+                            + int(possible_action_words[2])
+                        ]
+                    )
+                elif possible_action_words[0] == Action.CONTINUOUS_INTEGRATION.name:
+                    # p(CONTINUOUS_INTEGRATION <cardTypeToAutomate>) =
+                    #     output(CONTINUOUS_INTEGRATION <cardTypeToAutomate>)
+                    possible_action_scores[possible_action] = ai_outputs[
+                        Action.CONTINUOUS_INTEGRATION.value
+                        + int(possible_action_words[1])
+                    ]
+                elif possible_action_words[0] == Action.RELEASE.name:
+                    # p(RELEASE <applicationId>) = output(RELEASE <applicationId>)
+                    possible_action_scores[possible_action] = ai_outputs[
+                        Action.RELEASE.value
+                        + applications[int(possible_action_words[1])]
+                    ]
+                else:
+                    raise Exception(f"Unknown action: {possible_action}")
+
+        print(max(possible_action_scores, key=possible_action_scores.get))  # type: ignore
+
+    def run(self) -> None:
+        ai_inputs, applications, possible_actions = self.prepare_inputs()
+        ai_outputs = self.neural_network.calculate_output(ai_inputs)
+        self.act(ai_outputs, applications, possible_actions)
 
 
+if __name__ == "__main__":
+    if len(sys.args) > 1:
+        debug(sys.argv[1])
+        with open(sys.argv[1], "r") as f:
+            chr = f.read()
+    else:
+        chr = ""
 
+    weights = [int.from_bytes(c.encode(), "big") - 47 - 0x20 for c in chr]
+    # weights = [int(weight) for weight in re.findall(r'[+-]\d+', chr)]
 
-#GreenCircleAI(sys.args[1])
+    weights += [0] * (SYNAPSES_COUNT - len(weights))
+    ai = GreenCircleAI(weights[:SYNAPSES_COUNT])
 
-
-
-
-#print(str(sys.argv[1]))
-
-
-# # Complete the hackathon before your opponent by following the principles of Green IT
-# class Application:
-#     object_type : str
-#     _id : int
-#     tasks : List[int]
-#     score : int
-#     # training_needed : int  # number of TRAINING skills needed to release this application
-#     # coding_needed : int  # number of CODING skills needed to release this application
-#     # daily_routine_needed : int  # number of DAILY_ROUTINE skills needed to release this application
-#     # task_prioritization_needed : int  # number of TASK_PRIORITIZATION skills needed to release this application
-#     # architecture_study_needed : int  # number of ARCHITECTURE_STUDY skills needed to release this application
-#     # continuous_delivery_needed : int  # number of CONTINUOUS_DELIVERY skills needed to release this application
-#     # code_review_needed : int  # number of CODE_REVIEW skills needed to release this application
-#     # refactoring_needed : int  # number of REFACTORING skills needed to release this application
-
-
-# class Cards:
-#     cards_location : str  # the location of the card list. It can be HAND, DRAW, DISCARD or OPPONENT_CARDS (AUTOMATED and OPPONENT_AUTOMATED will appear in later leagues)
-#     # training_cards_count : int
-#     # coding_cards_count : int
-#     # daily_routine_cards_count : int
-#     # task_prioritization_cards_count : int
-#     # architecture_study_cards_count : int
-#     # continuous_delivery_cards_count : int
-#     # code_review_cards_count : int
-#     # refactoring_cards_count : int
-#     bonus_cards_count : int
-#     technical_debt_cards_count : int
-#     cards : List[int]
-
-
-# threshold = randint(0,3)
-
-# # game loop
-# while True:
-#     game_phase = input()  # can be MOVE, GIVE_CARD, THROW_CARD, PLAY_CARD or RELEASE
-#     #print(game_phase, file=sys.stderr, flush=True)
-#     applications_count = int(input())
-#     applications = {}
-#     for i in range(applications_count):
-#         app = Application()
-#         inputs = input().split()
-#         print(inputs, file=sys.stderr, flush=True)
-#         app.object_type = inputs[0]
-#         app._id = int(inputs[1])
-#         app.tasks = [int(inp) for inp in inputs[2:10]]
-#         # app.training_needed = int(inputs[2])  # number of TRAINING skills needed to release this application
-#         # app.coding_needed = int(inputs[3])  # number of CODING skills needed to release this application
-#         # app.daily_routine_needed = int(inputs[4])  # number of DAILY_ROUTINE skills needed to release this application
-#         # app.task_prioritization_needed = int(inputs[5])  # number of TASK_PRIORITIZATION skills needed to release this application
-#         # app.architecture_study_needed = int(inputs[6])  # number of ARCHITECTURE_STUDY skills needed to release this application
-#         # app.continuous_delivery_needed = int(inputs[7])  # number of CONTINUOUS_DELIVERY skills needed to release this application
-#         # app.code_review_needed = int(inputs[8])  # number of CODE_REVIEW skills needed to release this application
-#         # app.refactoring_needed = int(inputs[9])  # number of REFACTORING skills needed to release this application
-#         applications[app._id] = app
-#     #for i in range(2):
-#         # player_location: id of the zone in which the player is located
-#         # player_permanent_daily_routine_cards: number of DAILY_ROUTINE the player has played. It allows them to take cards from the adjacent zones
-#         # player_permanent_architecture_study_cards: number of ARCHITECTURE_STUDY the player has played. It allows them to draw more cards
-
-#     inputs = input().split()
-#     #print(inputs, file=sys.stderr, flush=True)
-#     player_location, player_score, player_permanent_daily_routine_cards, player_permanent_architecture_study_cards = [int(j) for j in inputs]
-#     inputs = input().split()
-#     #print(inputs, file=sys.stderr, flush=True)
-#     other_player_location, other_player_score, other_player_permanent_daily_routine_cards, other_player_permanent_architecture_study_cards = [int(j) for j in inputs]
-#     card_locations_count = int(input())
-#     cardss = {}
-#     for i in range(card_locations_count):
-#         cards = Cards()
-#         inputs = input().split()
-#         #print(inputs, file=sys.stderr, flush=True)
-#         cards.cards_location = inputs[0]  # the location of the card list. It can be HAND, DRAW, DISCARD or OPPONENT_CARDS (AUTOMATED and OPPONENT_AUTOMATED will appear in later leagues)
-#         cards.cards = [int(inp) for inp in inputs[1:9]]
-#         training_cards_count = int(inputs[1])
-#         # cards.coding_cards_count = int(inputs[2])
-#         # cards.daily_routine_cards_count = int(inputs[3])
-#         # cards.task_prioritization_cards_count = int(inputs[4])
-#         # cards.architecture_study_cards_count = int(inputs[5])
-#         # cards.continuous_delivery_cards_count = int(inputs[6])
-#         # cards.code_review_cards_count = int(inputs[7])
-#         # cards.refactoring_cards_count = int(inputs[8])
-#         cards.bonus_cards_count = int(inputs[9])
-#         cards.technical_debt_cards_count = int(inputs[10])
-#         cardss[cards.cards_location] = cards
-#     possible_moves_count = int(input())
-#     possible_moves = {}
-#     for i in range(possible_moves_count):
-#         possible_move = input()
-#         print(possible_move, file=sys.stderr, flush=True)
-#         if len(possible_move.split()) > 1:
-#             possible_moves[possible_move.split()[1]] = True
-#     print(possible_moves, file=sys.stderr, flush=True)
-
-#     # Write an action using print
-#     # To debug: print("Debug messages...", file=sys.stderr, flush=True)
-#     scores = {}
-#     for k, app in applications.items():
-#         scores[k] = 0
-#         for i, task in enumerate(app.tasks):
-#             scores[k] += min(task, cardss["HAND"].cards[i] * 2 + cardss["HAND"].bonus_cards_count)
-#     print(scores, file=sys.stderr, flush=True)
-
-#     # In the first league: RANDOM | MOVE <zoneId> | RELEASE <applicationId> | WAIT; In later leagues: | GIVE <cardType> | THROW <cardType> | TRAINING | CODING | DAILY_ROUTINE | TASK_PRIORITIZATION <cardTypeToThrow> <cardTypeToTake> | ARCHITECTURE_STUDY | CONTINUOUS_DELIVERY <cardTypeToAutomate> | CODE_REVIEW | REFACTORING;
-#     if game_phase == "MOVE":
-#         scores = {key:value for (key,value) in scores.items() if value < 8}
-#         if scores:
-#             needed = {key:value for (key,value) in enumerate(applications[max(scores.items(), key=operator.itemgetter(1))[0]].tasks) if value > 0 and key != player_location and key != other_player_location and key != (other_player_location - 1) % 8 and key != (other_player_location + 1) % 8}
-#             has = {key:value for (key,value) in enumerate(cardss["HAND"].cards) if needed.get(key)}
-#             print((needed, has), file=sys.stderr, flush=True)
-
-#             if has:
-#                 print(f'MOVE {min(has, key=has.get)}')
-#             elif needed:
-#                 print(f'MOVE {needed.keys()[0]}')
-#             else:
-#                 print(f'MOVE {(player_location + 1) % 8}')
-
-#         else:
-#             print(f'MOVE {(player_location + 1) % 8}')
-#     elif game_phase == "RELEASE":
-#         scores = {key:value for (key,value) in scores.items() if possible_moves.get(key)}
-#         print(scores, file=sys.stderr, flush=True)
-#         if scores:
-#             best = max(scores.items(), key=operator.itemgetter(1))
-#             if best[1] >= threshold:
-#                 print(f'RELEASE {best[0]} {threshold}')
-#             else:
-#                 print("WAIT")
-#         else:
-#             print("RANDOM")
-#     else:
-#         print("RANDOM")
+    while True:
+        ai.run()

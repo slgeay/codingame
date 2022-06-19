@@ -1,25 +1,28 @@
 from __future__ import annotations
 
+import subprocess
 from math import ceil
 from multiprocessing import Pool
 from multiprocessing.pool import AsyncResult
-from os import sched_getaffinity
+from os import mkdir
 from random import randint, random, sample, uniform
-import subprocess
-from time import time
+from shutil import rmtree
 from typing import Generic, List, Optional, Tuple, TypeVar
+from uuid import uuid4
 
+from ai import SYNAPSES_COUNT
 from numpy.random import choice
 
-CHROMOSOME_SIZE = 10#36315
+CHROMOSOME_SIZE = SYNAPSES_COUNT
 POPULATION_SIZE = 100
-GENERATION_SIZE = 10
+GENERATIONS_COUNT = 10000
 
 ELITE_RATIO = 0.1
 CHROMOSOME_MUTATE_RATIO = 0.001
 GENE_MUTATE_RATIO = 0.1
 
 POOL_SIZE = 3
+ROUNDS_PER_GENERATION = 5
 
 
 def unzip(zipped) -> Tuple:
@@ -67,15 +70,17 @@ G = TypeVar("G", bound=Gene)
 
 class Chromosome(Generic[G]):
     generation: int
+    id: str
     genes: List[G]
 
     @classmethod
     def _G(cls) -> type[G]:
         return generic_arg(cls, 0)
 
-    def __init__(self, generation: int, genes: List[G]):
-        self.genes = [gene.copy() for gene in genes]  # type: ignore
+    def __init__(self, generation: int, genes: List[G], id: Optional[str] = None):
         self.generation = generation
+        self.id = id or str(uuid4())
+        self.genes = [gene.copy() for gene in genes]  # type: ignore
 
     @classmethod
     def random(cls, generation: int, size: int) -> Chromosome:
@@ -99,13 +104,14 @@ class Chromosome(Generic[G]):
     def copy(self) -> Chromosome:
         return self.__class__(
             generation=self.generation,
+            id=self.id,
             genes=[gene.copy() for gene in self.genes],  # type: ignore
         )
 
     def crossover(
         self, generation: int, parent_2: Chromosome
     ) -> Tuple[Chromosome, Chromosome]:
-        weight = uniform(0.1, 0.9)
+        weight = uniform(0.02, 0.98)
         inv_weight = 1 - weight
         child_1_genes, child_2_genes = unzip(
             [
@@ -120,7 +126,9 @@ class Chromosome(Generic[G]):
         )
 
     def mutate(self, gene_mutate_ratio) -> None:
-        for i in sample(range(len(self.genes)), ceil(len(self.genes) * gene_mutate_ratio)):
+        for i in sample(
+            range(len(self.genes)), ceil(len(self.genes) * gene_mutate_ratio)
+        ):
             self.genes[i].mutate(self.genes[i - 1] if i > 0 else None)
 
 
@@ -169,7 +177,7 @@ P = TypeVar("P", bound=Population)
 class GeneticAlgorithm(Generic[P]):
     chromosome_size: int
     population_size: int
-    generation_size: int
+    generations_count: int
     elite_ratio: float
     chromosome_mutate_ratio: float
     gene_mutate_ratio: float
@@ -184,14 +192,14 @@ class GeneticAlgorithm(Generic[P]):
         self,
         chromosome_size: int = CHROMOSOME_SIZE,
         population_size: int = POPULATION_SIZE,
-        generation_size: int = GENERATION_SIZE,
+        generations_count: int = GENERATIONS_COUNT,
         elite_ratio: float = ELITE_RATIO,
         chromosome_mutate_ratio: float = CHROMOSOME_MUTATE_RATIO,
         gene_mutate_ratio: float = GENE_MUTATE_RATIO,
     ):
         self.chromosome_size = chromosome_size
         self.population_size = population_size
-        self.generation_size = generation_size
+        self.generations_count = generations_count
         self.elite_ratio = elite_ratio
         self.chromosome_mutate_ratio = chromosome_mutate_ratio
         self.gene_mutate_ratio = gene_mutate_ratio
@@ -200,10 +208,18 @@ class GeneticAlgorithm(Generic[P]):
 
     def run(self):
         self.initialize()
-        for generation in range(1, self.generation_size + 1):
+        for generation in range(self.generations_count + 1):
             self.select()
-            self.reproduce_and_mutate(generation)
-        print(self.populations[-1].chromosomes[0])
+            self.reproduce_and_mutate(generation + 1)
+
+            with open(f".chromosomes/{generation:05}__best.txt", "w") as f:
+                f.write(str(self.populations[-1].chromosomes[0]))
+            with open(f".chromosomes/{generation:05}__best_codingame.txt", "w") as f:
+                f.write(
+                    str(self.populations[-1].chromosomes[0])
+                    .replace("\\", "\\\\")
+                    .replace('"', '\\"')
+                )
 
     def initialize(self) -> None:
         self.populations = [
@@ -250,7 +266,9 @@ class GeneticAlgorithm(Generic[P]):
 
         scores = self.normalize(scores)
         pool_size = self.population_size - elite_size
-        parents = choice(pool, size=pool_size if pool_size % 2 == 0 else pool_size + 1, p=scores)
+        parents = choice(
+            pool, size=pool_size if pool_size % 2 == 0 else pool_size + 1, p=scores
+        )
 
         for parent_1, parent_2 in pairwise(parents):
             child_1, child_2 = parent_1.crossover(generation, parent_2)
@@ -263,31 +281,34 @@ class GeneticAlgorithm(Generic[P]):
             if len(new_population) < self.population_size:
                 new_population.append(child_2)
 
-
         self.populations.append(self._P()(generation, new_population))
 
 
-ROUNDS_PER_GENERATION = 10
+GENE_MIN = -47
+GENE_MAX = 47
 
 
 class GreenCircleGene(Gene):
-    synapse_weight: float
+    synapse_weight: int
 
-    def __init__(self, synapse_weight: Optional[float] = None):
-        self.synapse_weight = synapse_weight or self._random()
-
-    @classmethod
-    def random(cls, _: Optional[Gene] = None) -> GreenCircleGene:
-        return cls(
-            cls._random()
+    def __init__(self, synapse_weight: Optional[int] = None):
+        self.synapse_weight = min(
+            GENE_MAX, max(GENE_MIN, synapse_weight or self._random())
         )
 
     @classmethod
-    def _random(cls) -> float:
-        return uniform(0, 1)
+    def random(cls, _: Optional[Gene] = None) -> GreenCircleGene:
+        return cls(cls._random())
+
+    @classmethod
+    def _random(cls) -> int:
+        return randint(GENE_MIN, GENE_MAX)
 
     def __str__(self) -> str:
-        return f"{self.synapse_weight:.2f}"
+        # return f"{int(self.synapse_weight)}"
+        return int(self.synapse_weight - GENE_MIN + 0x20).to_bytes(1, "big").decode()
+
+    # return f"{self.synapse_weight:+}"
 
     def copy(self) -> GreenCircleGene:
         return self.__class__(synapse_weight=self.synapse_weight)
@@ -297,9 +318,9 @@ class GreenCircleGene(Gene):
     ) -> Tuple[GreenCircleGene, GreenCircleGene]:
         assert gene_2 is None or isinstance(gene_2, self.__class__)
         return self.__class__(
-            weight * self.synapse_weight + inv_weight * gene_2.synapse_weight,
+            int(weight * self.synapse_weight + inv_weight * gene_2.synapse_weight),
         ), self.__class__(
-            inv_weight * self.synapse_weight + weight * gene_2.synapse_weight,
+            int(inv_weight * self.synapse_weight + weight * gene_2.synapse_weight),
         )
 
     def mutate(self, _: Optional[Gene] = None) -> None:
@@ -307,33 +328,55 @@ class GreenCircleGene(Gene):
 
 
 class GreenCircleChromosome(Chromosome[GreenCircleGene]):
-    def encode(self) -> str:
-        return " ".join(
-            [
-                str(gene)
-                for gene in self.genes
-            ]
-        )
+    def __str__(self) -> str:
+        return f"({self.generation})<{''.join([str(gene) for gene in self.genes])}>"
+
+    def get_file_name(self) -> str:
+        return f".chromosomes/{self.generation:05}_{self.id}.txt"
+
+    def encode(self) -> None:
+        with open(self.get_file_name(), "wt") as f:
+            f.write("".join([str(gene) for gene in self.genes]))
 
 
 class GreenCirclePopulation(Population[GreenCircleChromosome]):
-    pass
+    def encode(self) -> None:
+        for chromosome in self.chromosomes:
+            chromosome.encode()
 
 
 class GreenCircleGeneticAlgorithm(GeneticAlgorithm[GreenCirclePopulation]):
+    def __init__(self):
+        super().__init__()
+        rmtree(".chromosomes", ignore_errors=True)
+        mkdir(".chromosomes")
 
     def compute_fitness(self) -> None:
-        scores = [0] * self.population_size
+        self.populations[-1].encode()
+        scores = [0.0] * self.population_size
         pool = Pool(POOL_SIZE)
 
         results: List[Tuple[int, int, AsyncResult]] = []
 
         for _ in range(ROUNDS_PER_GENERATION):
-            bracket = pairwise(sample(range(self.population_size), self.population_size))
+            bracket = pairwise(
+                sample(range(self.population_size), self.population_size)
+            )
 
             for player_1, player_2 in bracket:
-                results.append((player_1, player_2, pool.apply_async(self.launch_duel, (self.populations[-1].chromosomes[player_1], self.populations[-1].chromosomes[player_2]))))
-                #result = self.launch_duel(self.populations[-1].chromosomes[player_1], self.populations[-1].chromosomes[player_2])
+                results.append(
+                    (
+                        player_1,
+                        player_2,
+                        pool.apply_async(
+                            self.launch_duel,
+                            (
+                                self.populations[-1].chromosomes[player_1],
+                                self.populations[-1].chromosomes[player_2],
+                            ),
+                        ),
+                    )
+                )
 
         for player_1, player_2, res in results:
             result = res.get()
@@ -347,17 +390,31 @@ class GreenCircleGeneticAlgorithm(GeneticAlgorithm[GreenCirclePopulation]):
 
         self.scores.append(scores)
 
-
-    def launch_duel(self, chromosome_1: GreenCircleChromosome, chromosome_2: GreenCircleChromosome) -> Tuple[int, int]:
+    def launch_duel(
+        self, chromosome_1: GreenCircleChromosome, chromosome_2: GreenCircleChromosome
+    ) -> Tuple[int, int]:
         for _ in range(3):
             try:
-                result = subprocess.run(["/usr/lib/jvm/java-8-openjdk-amd64/bin/java", "-cp", "/tmp/cp_7wdcdfymzs7kpssaoh0wot2cw.jar", "SkeletonMain", chromosome_1.encode(), chromosome_2.encode()], stdout=subprocess.PIPE)
+                result = subprocess.run(
+                    [
+                        "/usr/lib/jvm/java-8-openjdk-amd64/bin/java",
+                        "-cp",
+                        "/tmp/cp_7wdcdfymzs7kpssaoh0wot2cw.jar",
+                        "SkeletonMain",
+                        chromosome_1.get_file_name(),
+                        chromosome_2.get_file_name(),
+                    ],
+                    stdout=subprocess.PIPE,
+                )
                 # print(result)
                 # print(score)
-                # with open('log.txt', 'w') as f:
-                #     f.write("\n".join(result.stdout.decode('utf-8').splitlines()[:-1]))
-                scores = (tuple([int(score) for score in result.stdout.decode('utf-8').splitlines()[-1].split(' ')]))
-                return scores
-            except:
-                pass
+                # with open("log.txt", "w") as f:
+                #     f.write("\n".join(result.stdout.decode("utf-8").splitlines()))
+                scores = result.stdout.decode("utf-8").splitlines()[-1].split(" ")
+                # result.stdout = None
+                # print(result)
+                return (int(scores[0]), int(scores[1]))
+            except BaseException as err:
+                print(f"Unexpected {err=}, {type(err)=}")
+
         return (0, 0)
