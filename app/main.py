@@ -1,4 +1,6 @@
+from random import uniform
 import subprocess
+from ai import GreenCircleAI
 import click
 from genetic_algorithm import GreenCircleGeneticAlgorithm
 
@@ -31,3 +33,6 @@ def launch() -> None:
 def compete() -> None:
     GreenCircleGeneticAlgorithm().run()
 
+@main.command()
+def test() -> None:
+    GreenCircleAI([uniform(0, 1) for _ in range(36315)])
