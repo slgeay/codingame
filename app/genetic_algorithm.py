@@ -15,14 +15,14 @@ from numpy.random import choice
 
 CHROMOSOME_SIZE = SYNAPSES_COUNT
 POPULATION_SIZE = 100
-GENERATIONS_COUNT = 10000
+GENERATIONS_COUNT = 100000
 
 ELITE_RATIO = 0.1
 CHROMOSOME_MUTATE_RATIO = 0.001
 GENE_MUTATE_RATIO = 0.1
 
 POOL_SIZE = 3
-ROUNDS_PER_GENERATION = 5
+ROUNDS_PER_GENERATION = 3
 
 
 def unzip(zipped) -> Tuple:
@@ -211,15 +211,15 @@ class GeneticAlgorithm(Generic[P]):
         for generation in range(self.generations_count + 1):
             self.select()
             self.reproduce_and_mutate(generation + 1)
+            best:C = self.populations[-1].chromosomes[0]
+            print(f"Generation {generation:05}: {best.generation}_{best.id} ({self.scores[-1][0]})")
+            print(str(self.scores[-1]))
 
             with open(f".chromosomes/{generation:05}__best.txt", "w") as f:
-                f.write(str(self.populations[-1].chromosomes[0]))
+                f.write(str(best))
             with open(f".chromosomes/{generation:05}__best_codingame.txt", "w") as f:
-                f.write(
-                    str(self.populations[-1].chromosomes[0])
-                    .replace("\\", "\\\\")
-                    .replace('"', '\\"')
-                )
+                f.write(str(best).replace("\\", "\\\\").replace('"', '\\"'))
+            self.populations = self.populations[-1:]
 
     def initialize(self) -> None:
         self.populations = [
@@ -259,15 +259,15 @@ class GeneticAlgorithm(Generic[P]):
         )
 
     def reproduce_and_mutate(self, generation: int) -> None:
-        scores, pool = self.sort(self.scores[-1], self.populations[-1])  # type: ignore
+        self.scores[-1], self.populations[-1] = self.sort(self.scores[-1], self.populations[-1])  # type: ignore
 
         elite_size = round(self.population_size * self.elite_ratio)
-        new_population = [chromosome.copy() for chromosome in pool[:elite_size]]
+        new_population = [chromosome.copy() for chromosome in self.populations[-1][:elite_size]]
 
-        scores = self.normalize(scores)
+        scores = self.normalize(self.scores[-1])
         pool_size = self.population_size - elite_size
         parents = choice(
-            pool, size=pool_size if pool_size % 2 == 0 else pool_size + 1, p=scores
+            self.populations[-1], size=pool_size if pool_size % 2 == 0 else pool_size + 1, p=scores
         )
 
         for parent_1, parent_2 in pairwise(parents):
@@ -329,7 +329,7 @@ class GreenCircleGene(Gene):
 
 class GreenCircleChromosome(Chromosome[GreenCircleGene]):
     def __str__(self) -> str:
-        return f"({self.generation})<{''.join([str(gene) for gene in self.genes])}>"
+        return ''.join([str(gene) for gene in self.genes])
 
     def get_file_name(self) -> str:
         return f".chromosomes/{self.generation:05}_{self.id}.txt"
