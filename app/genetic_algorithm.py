@@ -14,7 +14,7 @@ from ai import SYNAPSES_COUNT
 from numpy.random import choice
 
 CHROMOSOME_SIZE = SYNAPSES_COUNT
-POPULATION_SIZE = 100
+POPULATION_SIZE = 50
 GENERATIONS_COUNT = 100000
 
 ELITE_RATIO = 0.1
@@ -307,8 +307,7 @@ class GreenCircleGene(Gene):
     def __str__(self) -> str:
         # return f"{int(self.synapse_weight)}"
         return int(self.synapse_weight - GENE_MIN + 0x20).to_bytes(1, "big").decode()
-
-    # return f"{self.synapse_weight:+}"
+        # return f"{self.synapse_weight:+}"
 
     def copy(self) -> GreenCircleGene:
         return self.__class__(synapse_weight=self.synapse_weight)
@@ -381,13 +380,17 @@ class GreenCircleGeneticAlgorithm(GeneticAlgorithm[GreenCirclePopulation]):
         for player_1, player_2, res in results:
             result = res.get()
             # print(result)
-            if result[0] > result[1]:
-                scores[player_1] += 1
-                scores[player_2] -= 1
-            elif result[0] < result[1]:
-                scores[player_1] -= 1
-                scores[player_2] += 1
+            # print(scores[player_1], scores[player_2])
+            if result[0] < 0:
+                # Draw, count TECHNICAL_DEBT cards as negatives
+                scores[player_1] += result[0] - result[1]
+                scores[player_2] += result[1] - result[0]
+            else:
+                scores[player_1] += 10 * (result[0] - result[1] + (3 if result[0] == 5 else 0))
+                scores[player_2] += 10 * (result[1] - result[0] + (3 if result[1] == 5 else 0))
+            # print(scores[player_1], scores[player_2])
 
+        # print(scores)
         self.scores.append(scores)
 
     def launch_duel(
@@ -406,7 +409,7 @@ class GreenCircleGeneticAlgorithm(GeneticAlgorithm[GreenCirclePopulation]):
                     ],
                     stdout=subprocess.PIPE,
                 )
-                # print(result)
+                #print(result)
                 # print(score)
                 # with open("log.txt", "w") as f:
                 #     f.write("\n".join(result.stdout.decode("utf-8").splitlines()))

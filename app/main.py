@@ -2,8 +2,8 @@ import subprocess
 from random import randint
 
 import click
-from ai import GreenCircleAI
-from genetic_algorithm import GreenCircleGeneticAlgorithm
+from ai import SYNAPSES_COUNT, GreenCircleAI
+from genetic_algorithm import GENE_MAX, GENE_MIN, GreenCircleGeneticAlgorithm
 
 
 @click.group()
@@ -47,4 +47,4 @@ def compete() -> None:
 @main.command()
 def test() -> None:
     """Test to create a AI"""
-    GreenCircleAI([randint(-99, 99) for _ in range(34848)])
+    GreenCircleAI([randint(GENE_MIN, GENE_MAX) for _ in range(SYNAPSES_COUNT)])

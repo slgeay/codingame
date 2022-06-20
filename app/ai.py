@@ -1,21 +1,21 @@
 from __future__ import annotations
 
-import re
 import sys
 from enum import Enum
+from traceback import print_stack
 from typing import Dict, List, Optional, Tuple
 
 
 def debug(message: str) -> None:
     return
-    # print(message, file=sys.stderr, flush=True)
-    # print_stack(file=sys.stderr)
+    print(message, file=sys.stderr, flush=True)
+    print_stack(file=sys.stderr)
 
 
 def my_assert(condition: bool, message: Optional[str] = None) -> None:
     return
-    # if not condition:
-    #     debug(message)
+    if not condition:
+        debug(message)
 
 
 class Neuron:
@@ -381,7 +381,7 @@ class GreenCircleAI:
 
 
 if __name__ == "__main__":
-    if len(sys.args) > 1:
+    if len(sys.argv) > 1:
         debug(sys.argv[1])
         with open(sys.argv[1], "r") as f:
             chr = f.read()
