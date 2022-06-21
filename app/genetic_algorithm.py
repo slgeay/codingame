@@ -1,10 +1,11 @@
 from __future__ import annotations
+from genericpath import exists
 
 import subprocess
 from math import ceil
 from multiprocessing import Pool
 from multiprocessing.pool import AsyncResult
-from os import mkdir
+from os import mkdir, scandir
 from random import randint, random, sample, uniform
 from shutil import rmtree
 from typing import Generic, List, Optional, Tuple, TypeVar
@@ -14,11 +15,11 @@ from ai import SYNAPSES_COUNT
 from numpy.random import choice
 
 CHROMOSOME_SIZE = SYNAPSES_COUNT
-POPULATION_SIZE = 50
+POPULATION_SIZE = 100
 GENERATIONS_COUNT = 100000
 
 ELITE_RATIO = 0.1
-CHROMOSOME_MUTATE_RATIO = 0.001
+CHROMOSOME_MUTATE_RATIO = 0.01
 GENE_MUTATE_RATIO = 0.1
 
 POOL_SIZE = 3
@@ -102,6 +103,7 @@ class Chromosome(Generic[G]):
         return str(self.genes[round])
 
     def copy(self) -> Chromosome:
+        print(f"Copying {self.generation:05}_{self.id}")
         return self.__class__(
             generation=self.generation,
             id=self.id,
@@ -222,9 +224,18 @@ class GeneticAlgorithm(Generic[P]):
             self.populations = self.populations[-1:]
 
     def initialize(self) -> None:
+        print('initialize')
         self.populations = [
             self._P().random(self.population_size, self.chromosome_size)  # type: ignore
         ]
+        i = 0
+        for filename in scandir(".bests"):
+            if filename.is_file():
+                with open(filename, "r") as f:
+                    self.populations[-1].chromosomes[i] = self._P()._C().from_str(0, f.read())
+                    i += 1
+        
+        print('initialization done')
 
     def select(self) -> None:
         self.compute_fitness()
@@ -309,17 +320,22 @@ class GreenCircleGene(Gene):
         return int(self.synapse_weight - GENE_MIN + 0x20).to_bytes(1, "big").decode()
         # return f"{self.synapse_weight:+}"
 
+    @classmethod
+    def from_str(cls, c:str) -> GreenCircleGene:
+        return cls(int.from_bytes(c.encode(), "big") + GENE_MIN - 0x20)
+
     def copy(self) -> GreenCircleGene:
         return self.__class__(synapse_weight=self.synapse_weight)
 
     def crossover(
-        self, weight: float, inv_weight: float, gene_2: Gene
+        self, _1: float, _2: float, gene_2: Gene
     ) -> Tuple[GreenCircleGene, GreenCircleGene]:
         assert gene_2 is None or isinstance(gene_2, self.__class__)
+        r = randint(0,1)
         return self.__class__(
-            int(weight * self.synapse_weight + inv_weight * gene_2.synapse_weight),
+            self.synapse_weight if r == 1 else gene_2.synapse_weight,
         ), self.__class__(
-            int(inv_weight * self.synapse_weight + weight * gene_2.synapse_weight),
+            self.synapse_weight if r == 0 else gene_2.synapse_weight,
         )
 
     def mutate(self, _: Optional[Gene] = None) -> None:
@@ -336,6 +352,16 @@ class GreenCircleChromosome(Chromosome[GreenCircleGene]):
     def encode(self) -> None:
         with open(self.get_file_name(), "wt") as f:
             f.write("".join([str(gene) for gene in self.genes]))
+
+    @classmethod
+    def from_str(cls, generation: int, string: str) -> GreenCircleChromosome:
+        return cls(
+            generation,
+            [
+                GreenCircleGene.from_str(gene)
+                for gene in string
+            ]
+        )
 
 
 class GreenCirclePopulation(Population[GreenCircleChromosome]):
@@ -389,8 +415,10 @@ class GreenCircleGeneticAlgorithm(GeneticAlgorithm[GreenCirclePopulation]):
                 scores[player_1] += 10 * (result[0] - result[1] + (3 if result[0] == 5 else 0))
                 scores[player_2] += 10 * (result[1] - result[0] + (3 if result[1] == 5 else 0))
             # print(scores[player_1], scores[player_2])
+            print('.', end='', flush=True)
 
         # print(scores)
+        print('\n', end='', flush=True)
         self.scores.append(scores)
 
     def launch_duel(
