@@ -1,5 +1,4 @@
 from __future__ import annotations
-from genericpath import exists
 
 import subprocess
 from math import ceil
@@ -7,6 +6,7 @@ from multiprocessing import Pool
 from multiprocessing.pool import AsyncResult
 from os import mkdir, scandir
 from random import randint, random, sample, uniform
+from re import match
 from shutil import rmtree
 from typing import Generic, List, Optional, Tuple, TypeVar
 from uuid import uuid4
@@ -21,9 +21,10 @@ GENERATIONS_COUNT = 100000
 ELITE_RATIO = 0.1
 CHROMOSOME_MUTATE_RATIO = 0.01
 GENE_MUTATE_RATIO = 0.1
+PREVIOUS_SCORE_RATIO = 0.5
 
 POOL_SIZE = 3
-ROUNDS_PER_GENERATION = 3
+ROUNDS_PER_GENERATION = 5
 
 
 def unzip(zipped) -> Tuple:
@@ -183,8 +184,8 @@ class GeneticAlgorithm(Generic[P]):
     elite_ratio: float
     chromosome_mutate_ratio: float
     gene_mutate_ratio: float
-    populations: List[P]
-    scores: List[List[float]]
+    population: P
+    scores: List[float]
 
     @classmethod
     def _P(cls) -> type[P]:
@@ -205,56 +206,60 @@ class GeneticAlgorithm(Generic[P]):
         self.elite_ratio = elite_ratio
         self.chromosome_mutate_ratio = chromosome_mutate_ratio
         self.gene_mutate_ratio = gene_mutate_ratio
-        self.populations = []
-        self.scores = []
 
     def run(self):
         self.initialize()
-        for generation in range(self.generations_count + 1):
+        generation = 0
+        while True:
             self.select()
             self.reproduce_and_mutate(generation + 1)
-            best:C = self.populations[-1].chromosomes[0]
-            print(f"Generation {generation:05}: {best.generation}_{best.id} ({self.scores[-1][0]})")
-            print(str(self.scores[-1]))
+
+            best: C = self.population.chromosomes[0]
+            print(
+                f"Generation {generation:05}: {best.generation}_{best.id} ({self.scores[0]})"
+            )
+            print(str(self.scores))
 
             with open(f".chromosomes/{generation:05}__best.txt", "w") as f:
                 f.write(str(best))
             with open(f".chromosomes/{generation:05}__best_codingame.txt", "w") as f:
                 f.write(str(best).replace("\\", "\\\\").replace('"', '\\"'))
-            self.populations = self.populations[-1:]
+
+            generation += 1
 
     def initialize(self) -> None:
-        print('initialize')
-        self.populations = [
-            self._P().random(self.population_size, self.chromosome_size)  # type: ignore
-        ]
-        i = 0
+        print("initialize")
+        chromosomes: List[C] = []  # type: ignore
         for filename in scandir(".bests"):
             if filename.is_file():
                 with open(filename, "r") as f:
-                    self.populations[-1].chromosomes[i] = self._P()._C().from_str(0, f.read())
-                    i += 1
-        
-        print('initialization done')
+                    chromosomes.append(self._P()._C().from_str(0, f.read()))
+
+        print(f"Read {len(chromosomes)} chromosomes")
+
+        for _ in range(len(chromosomes), self.population_size):
+            chromosomes.append(self._P()._C().random(0, self.chromosome_size))
+
+        print(f"First generation: {len(chromosomes)} chromosomes")
+
+        self.population = self._P()(0, chromosomes)
+        print("initialization done")
 
     def select(self) -> None:
         self.compute_fitness()
 
     def compute_fitness(self) -> None:
-        self.scores.append(
-            [
-                self.get_score(chromosome)
-                for chromosome in self.populations[-1].chromosomes
-            ]
-        )
+        self.scores = [
+            self.get_score(chromosome) for chromosome in self.population.chromosomes
+        ]
 
     def get_score(self, chromosome: C) -> float:
         pass
 
-    def sort(self, scores: List[float], population: P) -> Tuple[List[float], List[C]]:
+    def sort(self, scores: List[float], chromosomes: List[C]) -> Tuple[List[float], List[C]]:
         return unzip(  # type: ignore
             sorted(
-                zip(scores, population.chromosomes),
+                zip(scores, chromosomes),
                 key=lambda z: z[0],
                 reverse=True,
             )
@@ -270,15 +275,19 @@ class GeneticAlgorithm(Generic[P]):
         )
 
     def reproduce_and_mutate(self, generation: int) -> None:
-        self.scores[-1], self.populations[-1] = self.sort(self.scores[-1], self.populations[-1])  # type: ignore
+        self.scores, self.population.chromosomes = self.sort(self.scores, self.population.chromosomes)  # type: ignore
 
-        elite_size = round(self.population_size * self.elite_ratio)
-        new_population = [chromosome.copy() for chromosome in self.populations[-1][:elite_size]]
+        elite_size = ceil(self.population_size * self.elite_ratio)
+        new_chromosomes = [
+            chromosome.copy() for chromosome in self.population.chromosomes[:elite_size]
+        ]
 
-        scores = self.normalize(self.scores[-1])
+        scores = self.normalize(self.scores)
         pool_size = self.population_size - elite_size
         parents = choice(
-            self.populations[-1], size=pool_size if pool_size % 2 == 0 else pool_size + 1, p=scores
+            self.population.chromosomes,
+            size=pool_size if pool_size % 2 == 0 else pool_size + 1,
+            p=scores,
         )
 
         for parent_1, parent_2 in pairwise(parents):
@@ -288,11 +297,11 @@ class GeneticAlgorithm(Generic[P]):
             if random() <= self.chromosome_mutate_ratio:
                 child_2.mutate(self.gene_mutate_ratio)
 
-            new_population.append(child_1)
-            if len(new_population) < self.population_size:
-                new_population.append(child_2)
+            new_chromosomes.append(child_1)
+            if len(new_chromosomes) < self.population_size:
+                new_chromosomes.append(child_2)
 
-        self.populations.append(self._P()(generation, new_population))
+        self.population = self._P()(generation, new_chromosomes)
 
 
 GENE_MIN = -47
@@ -321,7 +330,7 @@ class GreenCircleGene(Gene):
         # return f"{self.synapse_weight:+}"
 
     @classmethod
-    def from_str(cls, c:str) -> GreenCircleGene:
+    def from_str(cls, c: str) -> GreenCircleGene:
         return cls(int.from_bytes(c.encode(), "big") + GENE_MIN - 0x20)
 
     def copy(self) -> GreenCircleGene:
@@ -331,7 +340,7 @@ class GreenCircleGene(Gene):
         self, _1: float, _2: float, gene_2: Gene
     ) -> Tuple[GreenCircleGene, GreenCircleGene]:
         assert gene_2 is None or isinstance(gene_2, self.__class__)
-        r = randint(0,1)
+        r = randint(0, 1)
         return self.__class__(
             self.synapse_weight if r == 1 else gene_2.synapse_weight,
         ), self.__class__(
@@ -343,8 +352,20 @@ class GreenCircleGene(Gene):
 
 
 class GreenCircleChromosome(Chromosome[GreenCircleGene]):
+    last_score: float = 0.0
+
+    def __init__(self, generation: int, genes: List[G], id: Optional[str] = None):
+        super().__init__(generation, genes, id)  # type: ignore
+        self.last_score = 0.0
+
+    def set_last_score(self, score: float):
+        self.last_score = score
+
+    def get_last_score(self) -> float:
+        return self.last_score
+
     def __str__(self) -> str:
-        return ''.join([str(gene) for gene in self.genes])
+        return "".join([str(gene) for gene in self.genes])
 
     def get_file_name(self) -> str:
         return f".chromosomes/{self.generation:05}_{self.id}.txt"
@@ -355,13 +376,17 @@ class GreenCircleChromosome(Chromosome[GreenCircleGene]):
 
     @classmethod
     def from_str(cls, generation: int, string: str) -> GreenCircleChromosome:
-        return cls(
-            generation,
-            [
-                GreenCircleGene.from_str(gene)
-                for gene in string
-            ]
+        return cls(generation, [GreenCircleGene.from_str(gene) for gene in string])  # type: ignore
+
+    def copy(self) -> GreenCircleChromosome:
+        print(f"Copying {self.generation:05}_{self.id}")
+        self_copy = self.__class__(
+            generation=self.generation,
+            id=self.id,
+            genes=[gene.copy() for gene in self.genes],  # type: ignore
         )
+        self_copy.set_last_score(self.get_last_score() * PREVIOUS_SCORE_RATIO)
+        return self_copy
 
 
 class GreenCirclePopulation(Population[GreenCircleChromosome]):
@@ -377,16 +402,20 @@ class GreenCircleGeneticAlgorithm(GeneticAlgorithm[GreenCirclePopulation]):
         mkdir(".chromosomes")
 
     def compute_fitness(self) -> None:
-        self.populations[-1].encode()
-        scores = [0.0] * self.population_size
+        self.population.encode()
+        population_size = len(self.population.chromosomes)
+        scores = []
+
+        for i in range(population_size):
+            scores.append(self.population.chromosomes[i].get_last_score())
+
+        # print(scores)
         pool = Pool(POOL_SIZE)
 
         results: List[Tuple[int, int, AsyncResult]] = []
 
         for _ in range(ROUNDS_PER_GENERATION):
-            bracket = pairwise(
-                sample(range(self.population_size), self.population_size)
-            )
+            bracket = pairwise(sample(range(population_size), population_size))
 
             for player_1, player_2 in bracket:
                 results.append(
@@ -396,8 +425,8 @@ class GreenCircleGeneticAlgorithm(GeneticAlgorithm[GreenCirclePopulation]):
                         pool.apply_async(
                             self.launch_duel,
                             (
-                                self.populations[-1].chromosomes[player_1],
-                                self.populations[-1].chromosomes[player_2],
+                                self.population.chromosomes[player_1],
+                                self.population.chromosomes[player_2],
                             ),
                         ),
                     )
@@ -409,21 +438,29 @@ class GreenCircleGeneticAlgorithm(GeneticAlgorithm[GreenCirclePopulation]):
             # print(scores[player_1], scores[player_2])
             if result[0] < 0:
                 # Draw, count TECHNICAL_DEBT cards as negatives
-                scores[player_1] += result[0] - result[1]
-                scores[player_2] += result[1] - result[0]
+                scores[player_1] += 5 * (result[0] - result[1])
+                scores[player_2] += 5 * (result[1] - result[0])
             else:
-                scores[player_1] += 10 * (result[0] - result[1] + (3 if result[0] == 5 else 0))
-                scores[player_2] += 10 * (result[1] - result[0] + (3 if result[1] == 5 else 0))
+                scores[player_1] += 25 * (result[0] - result[1]) + (
+                    (200 - result[2]) if result[0] == 5 else 0
+                )
+                scores[player_2] += 25 * (result[1] - result[0]) + (
+                    (200 - result[2]) if result[1] == 5 else 0
+                )
             # print(scores[player_1], scores[player_2])
-            print('.', end='', flush=True)
+            print(".", end="", flush=True)
 
         # print(scores)
-        print('\n', end='', flush=True)
-        self.scores.append(scores)
+        print("\n", end="", flush=True)
+
+        for i in range(population_size):
+            self.population.chromosomes[i].set_last_score(scores[i])
+
+        self.scores = scores
 
     def launch_duel(
         self, chromosome_1: GreenCircleChromosome, chromosome_2: GreenCircleChromosome
-    ) -> Tuple[int, int]:
+    ) -> Tuple[int, int, int]:
         for _ in range(3):
             try:
                 result = subprocess.run(
@@ -437,15 +474,25 @@ class GreenCircleGeneticAlgorithm(GeneticAlgorithm[GreenCirclePopulation]):
                     ],
                     stdout=subprocess.PIPE,
                 )
-                #print(result)
+
+                lines = result.stdout.decode("utf-8").splitlines()
+
+                rounds = 200
+                for line in reversed(lines):
+                    m = match(r"KEY_FRAME (\d+)", line)
+                    if m:
+                        rounds = int(m.group(1))
+                        break
+
+                # print(result)
                 # print(score)
                 # with open("log.txt", "w") as f:
                 #     f.write("\n".join(result.stdout.decode("utf-8").splitlines()))
-                scores = result.stdout.decode("utf-8").splitlines()[-1].split(" ")
+                scores = lines[-1].split(" ")
                 # result.stdout = None
                 # print(result)
-                return (int(scores[0]), int(scores[1]))
+                return (int(scores[0]), int(scores[1]), rounds)
             except BaseException as err:
                 print(f"Unexpected {err=}, {type(err)=}")
 
-        return (0, 0)
+        return (0, 0, 200)
