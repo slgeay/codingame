@@ -15,16 +15,18 @@ from ai import SYNAPSES_COUNT
 from numpy.random import choice
 
 CHROMOSOME_SIZE = SYNAPSES_COUNT
-POPULATION_SIZE = 100
-GENERATIONS_COUNT = 100000
+POPULATION_SIZE = 20
 
 ELITE_RATIO = 0.1
-CHROMOSOME_MUTATE_RATIO = 0.01
+CHROMOSOME_MUTATE_RATIO = 0.1
 GENE_MUTATE_RATIO = 0.1
-PREVIOUS_SCORE_RATIO = 0.5
+CROSSOVER_RATIO = 1.0
+PREVIOUS_SCORE_RATIO = 0.25
+
+GENERATIONS_MAX = 1000
 
 POOL_SIZE = 3
-ROUNDS_PER_GENERATION = 5
+ROUNDS_PER_GENERATION = 10
 
 
 def unzip(zipped) -> Tuple:
@@ -180,10 +182,11 @@ P = TypeVar("P", bound=Population)
 class GeneticAlgorithm(Generic[P]):
     chromosome_size: int
     population_size: int
-    generations_count: int
+    generations_max: float
     elite_ratio: float
     chromosome_mutate_ratio: float
     gene_mutate_ratio: float
+    crossover_ratio: float
     population: P
     scores: List[float]
 
@@ -195,22 +198,24 @@ class GeneticAlgorithm(Generic[P]):
         self,
         chromosome_size: int = CHROMOSOME_SIZE,
         population_size: int = POPULATION_SIZE,
-        generations_count: int = GENERATIONS_COUNT,
+        generations_max: float = GENERATIONS_MAX,
         elite_ratio: float = ELITE_RATIO,
         chromosome_mutate_ratio: float = CHROMOSOME_MUTATE_RATIO,
         gene_mutate_ratio: float = GENE_MUTATE_RATIO,
+        crossover_ratio: float = CROSSOVER_RATIO,
     ):
         self.chromosome_size = chromosome_size
         self.population_size = population_size
-        self.generations_count = generations_count
+        self.generations_max = generations_max
         self.elite_ratio = elite_ratio
         self.chromosome_mutate_ratio = chromosome_mutate_ratio
         self.gene_mutate_ratio = gene_mutate_ratio
+        self.crossover_ratio = crossover_ratio
 
     def run(self):
         self.initialize()
         generation = 0
-        while True:
+        for generation in range(self.generations_max + 1):
             self.select()
             self.reproduce_and_mutate(generation + 1)
 
@@ -224,8 +229,6 @@ class GeneticAlgorithm(Generic[P]):
                 f.write(str(best))
             with open(f".chromosomes/{generation:05}__best_codingame.txt", "w") as f:
                 f.write(str(best).replace("\\", "\\\\").replace('"', '\\"'))
-
-            generation += 1
 
     def initialize(self) -> None:
         print("initialize")
@@ -277,6 +280,9 @@ class GeneticAlgorithm(Generic[P]):
     def reproduce_and_mutate(self, generation: int) -> None:
         self.scores, self.population.chromosomes = self.sort(self.scores, self.population.chromosomes)  # type: ignore
 
+        self.chromosome_mutate_ratio = generation / self.generations_max
+        self.crossover_ratio = 1 - generation / self.generations_max
+
         elite_size = ceil(self.population_size * self.elite_ratio)
         new_chromosomes = [
             chromosome.copy() for chromosome in self.population.chromosomes[:elite_size]
@@ -291,11 +297,18 @@ class GeneticAlgorithm(Generic[P]):
         )
 
         for parent_1, parent_2 in pairwise(parents):
-            child_1, child_2 = parent_1.crossover(generation, parent_2)
+            if random() <= self.crossover_ratio:
+                child_1, child_2 = parent_1.crossover(generation, parent_2)
+            else:
+                child_1 = parent_1.copy()
+                child_2 = parent_2.copy()
+
             if random() <= self.chromosome_mutate_ratio:
                 child_1.mutate(self.gene_mutate_ratio)
+                child_1.generation = generation
             if random() <= self.chromosome_mutate_ratio:
                 child_2.mutate(self.gene_mutate_ratio)
+                child_2.generation = generation
 
             new_chromosomes.append(child_1)
             if len(new_chromosomes) < self.population_size:
