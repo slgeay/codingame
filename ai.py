@@ -60,11 +60,16 @@ class Game:
         resource_cells = self.cells_with_crystals + self.cells_with_eggs
         resource_cells.sort(key=lambda cell: self.calculate_priority(cell))
 
+        remaining_ants = self.total_my_ants
         for cell in resource_cells:
             path = self.calculate_shortest_path(self.base, cell)
+            # Only continue if we have enough ants to create a valid chain
+            if remaining_ants < len(path):
+                break
             strength = self.calculate_strength(cell)
             for i in range(len(path)-1):
                 actions.append(f"LINE {path[i]} {path[i+1]} {strength}")
+            remaining_ants -= len(path)
 
         # If no actions, wait
         if not actions:
