@@ -91,8 +91,7 @@ class Game:
                 for cell in path:
                     beacons[cell] = max(beacons.get(cell, 0), strength)
                 remaining_ants -= len(path_without_beacon)
-            if remaining_ants < len(path_without_beacon):
-                break
+
 
         return paths, beacons
 
