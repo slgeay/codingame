@@ -19,6 +19,7 @@ class Game:
         self.opp_base = None
         self.cells_with_crystals = []
         self.cells_with_eggs = []
+        self.total_resources = 0
         self.total_my_ants = 0
 
     def initialize(self):
@@ -43,6 +44,7 @@ class Game:
     def play_turn(self):
         self.cells_with_crystals = []
         self.cells_with_eggs = []
+        self.total_resources = 0
         self.total_my_ants = 0
         # Read turn info
         for i in range(len(self.map)):
@@ -50,6 +52,7 @@ class Game:
             self.map[i]['resources'] = cell_info[0]
             self.map[i]['myAnts'] = cell_info[1]
             self.map[i]['oppAnts'] = cell_info[2]
+            self.total_resources += cell_info[0]
             self.total_my_ants += cell_info[1]
             if self.map[i]['type'] == Type.CRYSTAL and cell_info[0] > 0:
                 self.cells_with_crystals.append(i)
@@ -133,10 +136,6 @@ class Game:
             if current_cell == end:
                 break
 
-            # If we've found a shorter path to this cell before, ignore this path
-            if current_distance > distances[current_cell]:
-                continue
-
             # Loop through each neighbour of the current cell
             for neighbour in self.map[current_cell]['neigh']:
                 # If the neighbour cell doesn't exist, skip
@@ -145,6 +144,12 @@ class Game:
 
                 # Calculate the distance to the neighbour cell
                 distance = current_distance + 1  # Each move costs 1
+                if self.map[neighbour]['resources'] > 0:
+                    ratio = self.map[neighbour]['resources'] / self.total_resources
+                    if self.map[neighbour]['type'] == Type.CRYSTAL:
+                        distance -= ratio/self.total_resources
+                    elif self.map[neighbour]['type'] == Type.EGG:
+                        distance -= ratio/self.total_my_ants
 
                 # If this path to the neighbour cell is shorter, update our data
                 if distance < distances[neighbour]:
