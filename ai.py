@@ -18,6 +18,7 @@ class Game:
         self.opp_base = None
         self.cells_with_crystals = []
         self.cells_with_eggs = []
+        self.total_my_ants = 0
 
     def initialize(self):
         # Read initial game state
@@ -41,12 +42,14 @@ class Game:
     def play_turn(self):
         self.cells_with_crystals = []
         self.cells_with_eggs = []
+        self.total_my_ants = 0
         # Read turn info
         for i in range(len(self.map)):
             cell_info = list(map(int, input().split()))
             self.map[i]['resources'] = cell_info[0]
             self.map[i]['myAnts'] = cell_info[1]
             self.map[i]['oppAnts'] = cell_info[2]
+            self.total_my_ants += cell_info[1]
             if self.map[i]['type'] == Type.CRYSTAL and cell_info[0] > 0:
                 self.cells_with_crystals.append(i)
             elif self.map[i]['type'] == Type.EGG and cell_info[0] > 0:
@@ -54,15 +57,12 @@ class Game:
 
         # Calculate paths and beacon strengths
         actions = []
-        for crystal_cell in self.cells_with_crystals:
-            path = self.calculate_shortest_path(self.base, crystal_cell)
-            strength = self.calculate_strength(crystal_cell)
-            for i in range(len(path)-1):
-                actions.append(f"LINE {path[i]} {path[i+1]} {strength}")
+        resource_cells = self.cells_with_crystals + self.cells_with_eggs
+        resource_cells.sort(key=lambda cell: self.calculate_priority(cell))
 
-        for egg_cell in self.cells_with_eggs:
-            path = self.calculate_shortest_path(self.base, egg_cell)
-            strength = self.calculate_strength(egg_cell)
+        for cell in resource_cells:
+            path = self.calculate_shortest_path(self.base, cell)
+            strength = self.calculate_strength(cell)
             for i in range(len(path)-1):
                 actions.append(f"LINE {path[i]} {path[i+1]} {strength}")
 
@@ -72,6 +72,18 @@ class Game:
         
         # Print actions
         print(";".join(actions))
+
+    def calculate_priority(self, cell):
+        # Lower distance, higher resources and egg cells (when we have fewer ants) are preferred
+        distance = len(self.calculate_shortest_path(self.base, cell)) or float('inf')
+        resources = self.map[cell]['resources']
+        is_egg = self.map[cell]['type'] == Type.EGG
+        ant_ratio = self.total_my_ants / (self.total_my_ants + resources)
+        if is_egg:
+            priority = distance - resources * (1 - ant_ratio)
+        else:
+            priority = distance - resources * ant_ratio
+        return priority
 
     def calculate_shortest_path(self, start, end):
         # Initialize the priority queue with the start cell
