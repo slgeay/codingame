@@ -87,12 +87,16 @@ On each turn players can do any amount of valid actions, which include:
 ### Initialization Input
 
 **First line:** `numberOfCells` an integer for the amount of cells in the map.
+
 **Next `numberOfCells` lines:** the cells, ordered by `index`. Each cell is represented by `8` space-separated integers:
 - `type`: `1` for egg, `2` for crystal, `0` otherwise.
 - `initialResources` for the amount of crystal/egg here.
 - `6` `neigh` variables: Ignore for this league.
+
 **Next line:** one integer `numberOfBases` which equals `1` for this league.
+
 **Next line:** `numberOfBases` integers for the cell indices where a **friendly base** is present.
+
 **Next line:** `numberOfBases` integers for the cell indices where an **opponent base** is present.
 
 ### Input for One Game Turn
