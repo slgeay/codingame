@@ -86,20 +86,33 @@ class Game:
 
         remaining_ants = self.total_my_ants
         for cell in resource_cells:
-            for base in self.bases:
-                path = self.calculate_shortest_path(base, cell)
-                path_without_beacon = [cell for cell in path if cell not in beacons]
-                # Only continue if we have enough ants to create a valid chain
-                if remaining_ants < len(path_without_beacon):
-                    break
-                paths.append(path)
-                strength = self.calculate_strength(cell)
-                for cell in path:
-                    beacons[cell] = max(beacons.get(cell, 0), strength)
-                remaining_ants -= len(path_without_beacon)
-
+            # Find the closest base for each cell
+            closest_base, shortest_path = self.find_closest_base(cell)
+            path_without_beacon = [cell for cell in shortest_path if cell not in beacons]
+            # Only continue if we have enough ants to create a valid chain
+            if remaining_ants < len(path_without_beacon):
+                break
+            paths.append(shortest_path)
+            strength = self.calculate_strength(cell)
+            for cell in shortest_path:
+                beacons[cell] = max(beacons.get(cell, 0), strength)
+            remaining_ants -= len(path_without_beacon)
 
         return paths, beacons
+    
+    def find_closest_base(self, cell):
+        closest_base = None
+        shortest_path = []
+        shortest_distance = float('inf')
+
+        for base in self.bases:
+            path = self.calculate_shortest_path(base, cell)
+            if len(path) < shortest_distance:
+                closest_base = base
+                shortest_path = path
+                shortest_distance = len(path)
+
+        return closest_base, shortest_path
 
     def calculate_path_resources(self, path):
         return sum(self.map[cell]['resources'] for cell in path)
