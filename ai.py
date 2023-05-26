@@ -17,6 +17,7 @@ class Game:
         self.base = None
         self.opp_base = None
         self.cells_with_crystals = []
+        self.cells_with_eggs = []
 
     def initialize(self):
         # Read initial game state
@@ -30,14 +31,16 @@ class Game:
             }
             if cell_info[0] == Type.CRYSTAL:
                 self.cells_with_crystals.append(i)
+            elif cell_info[0] == Type.EGG:
+                self.cells_with_eggs.append(i)
         
         number_of_bases = int(input())
         self.base = int(input())
         self.opp_base = int(input())
 
-
     def play_turn(self):
         self.cells_with_crystals = []
+        self.cells_with_eggs = []
         # Read turn info
         for i in range(len(self.map)):
             cell_info = list(map(int, input().split()))
@@ -46,13 +49,20 @@ class Game:
             self.map[i]['oppAnts'] = cell_info[2]
             if self.map[i]['type'] == Type.CRYSTAL and cell_info[0] > 0:
                 self.cells_with_crystals.append(i)
-        debug(f"cells_with_crystals: {self.cells_with_crystals}")
+            elif self.map[i]['type'] == Type.EGG and cell_info[0] > 0:
+                self.cells_with_eggs.append(i)
 
         # Calculate paths and beacon strengths
         actions = []
         for crystal_cell in self.cells_with_crystals:
             path = self.calculate_shortest_path(self.base, crystal_cell)
             strength = self.calculate_strength(crystal_cell)
+            for i in range(len(path)-1):
+                actions.append(f"LINE {path[i]} {path[i+1]} {strength}")
+
+        for egg_cell in self.cells_with_eggs:
+            path = self.calculate_shortest_path(self.base, egg_cell)
+            strength = self.calculate_strength(egg_cell)
             for i in range(len(path)-1):
                 actions.append(f"LINE {path[i]} {path[i+1]} {strength}")
 
@@ -64,7 +74,6 @@ class Game:
         print(";".join(actions))
 
     def calculate_shortest_path(self, start, end):
-        debug(f"calculate_shortest_path({start}, {end})")
         # Initialize the priority queue with the start cell
         queue = [(0, start)]  # (distance, cell)
 
@@ -109,11 +118,9 @@ class Game:
                 path.append(current_cell)
                 current_cell = previous_cells[current_cell]
             path.reverse()
-            debug("path:{path}")
             return path
 
         # If there's no path to the end cell, return an empty list
-        debug("path:[]")
         return []
 
     def calculate_strength(self, cell):
