@@ -56,7 +56,21 @@ class Game:
                 self.cells_with_eggs.append(i)
 
         # Calculate paths and beacon strengths
+        paths, beacons = self.create_beacon_paths()
         actions = []
+        for cell, strength in beacons.items():
+            actions.append(f"BEACON {cell} {strength}")
+
+        # If no actions, wait
+        if not actions:
+            actions.append("WAIT")
+        
+        # Print actions
+        print(";".join(actions))
+
+    def create_beacon_paths(self):
+        paths = []
+        beacons = {}
         resource_cells = self.cells_with_crystals + self.cells_with_eggs
         resource_cells.sort(key=lambda cell: self.calculate_priority(cell))
 
@@ -66,17 +80,13 @@ class Game:
             # Only continue if we have enough ants to create a valid chain
             if remaining_ants < len(path):
                 break
+            paths.append(path)
             strength = self.calculate_strength(cell)
-            for i in range(len(path)-1):
-                actions.append(f"LINE {path[i]} {path[i+1]} {strength}")
+            for cell in path:
+                beacons[cell] = max(beacons.get(cell, 0), strength)
             remaining_ants -= len(path)
 
-        # If no actions, wait
-        if not actions:
-            actions.append("WAIT")
-        
-        # Print actions
-        print(";".join(actions))
+        return paths, beacons
 
     def calculate_priority(self, cell):
         # Lower distance, higher resources and egg cells (when we have fewer ants) are preferred
