@@ -165,10 +165,7 @@ class Game:
         return []
 
     def calculate_strength(self, cell):
-        # Strength is proportional to the amount of resources but inversely proportional to the distance
-        distance = len(self.calculate_shortest_path(self.base, cell)) or 1
-        resources = self.map[cell]['resources']
-        return math.ceil(resources / distance)
+        return 1
 
 game = Game()
 game.initialize()
