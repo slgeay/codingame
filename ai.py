@@ -142,7 +142,7 @@ class Game:
                 if neighbour == -1:
                     continue
 
-                # Calculate the distance to the neighbour cell
+                # Calculate the distance to the neighbour cell, decreasing it if the cell has resources
                 distance = current_distance + 1  # Each move costs 1
                 if self.map[neighbour]['resources'] > 0:
                     ratio = self.map[neighbour]['resources'] / self.total_resources
