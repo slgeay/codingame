@@ -1,5 +1,6 @@
 from enum import IntEnum
 from heapq import heappop, heappush
+import math
 import sys
 
 def debug(s):
@@ -160,8 +161,10 @@ class Game:
         return []
 
     def calculate_strength(self, cell):
-        # Strength can be proportional to the amount of resources
-        return self.map[cell]['resources']
+        # Strength is proportional to the amount of resources but inversely proportional to the distance
+        distance = len(self.calculate_shortest_path(self.base, cell)) or 1
+        resources = self.map[cell]['resources']
+        return math.ceil(resources / distance)
 
 game = Game()
 game.initialize()
