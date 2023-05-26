@@ -10,4 +10,5 @@ However, the ants **cannot be controlled directly**. The ants will respond to th
 
 ## Leagues
 
-- [Wood League](docs/WOOD.md)
+- [Wood 2 League](docs/WOOD_2.md)
+- [Wood 1 League](docs/WOOD_1.md)

@@ -1,4 +1,4 @@
-# Wood League
+# Wood 2 League
 
 ## Goal
 
