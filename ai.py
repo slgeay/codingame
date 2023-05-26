@@ -15,8 +15,8 @@ class Game:
     def __init__(self):
         # Initialization
         self.map = {}
-        self.base = None
-        self.opp_base = None
+        self.bases = []
+        self.opp_bases = []
         self.cells_with_crystals = []
         self.cells_with_eggs = []
         self.total_resources = 0
@@ -38,8 +38,8 @@ class Game:
                 self.cells_with_eggs.append(i)
         
         number_of_bases = int(input())
-        self.base = int(input())
-        self.opp_base = int(input())
+        self.bases = list(map(int, input().split()))
+        self.opp_bases = list(map(int, input().split()))
 
     def play_turn(self):
         self.cells_with_crystals = []
@@ -76,29 +76,32 @@ class Game:
         paths = []
         beacons = {}
         resource_cells = self.cells_with_crystals + self.cells_with_eggs
-        resource_cells.sort(key=lambda cell: self.calculate_priority(cell))
+        resource_cells.sort(key=lambda cell: min(self.calculate_priority(base, cell) for base in self.bases))
 
         remaining_ants = self.total_my_ants
         for cell in resource_cells:
-            path = self.calculate_shortest_path(self.base, cell)
-            path_without_beacon = [cell for cell in path if cell not in beacons]
-            # Only continue if we have enough ants to create a valid chain
+            for base in self.bases:
+                path = self.calculate_shortest_path(base, cell)
+                path_without_beacon = [cell for cell in path if cell not in beacons]
+                # Only continue if we have enough ants to create a valid chain
+                if remaining_ants < len(path_without_beacon):
+                    break
+                paths.append(path)
+                strength = self.calculate_strength(cell)
+                for cell in path:
+                    beacons[cell] = max(beacons.get(cell, 0), strength)
+                remaining_ants -= len(path_without_beacon)
             if remaining_ants < len(path_without_beacon):
                 break
-            paths.append(path)
-            strength = self.calculate_strength(cell)
-            for cell in path:
-                beacons[cell] = max(beacons.get(cell, 0), strength)
-            remaining_ants -= len(path_without_beacon)
 
         return paths, beacons
 
     def calculate_path_resources(self, path):
         return sum(self.map[cell]['resources'] for cell in path)
 
-    def calculate_priority(self, cell):
+    def calculate_priority(self, base, cell):
         # Calculate path and its properties
-        path = self.calculate_shortest_path(self.base, cell)
+        path = self.calculate_shortest_path(base, cell)
         total_resources = self.calculate_path_resources(path)
         average_resources_per_move = total_resources / len(path)
         ant_ratio = self.total_my_ants / (self.total_my_ants + total_resources)
