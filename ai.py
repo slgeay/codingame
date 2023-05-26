@@ -88,16 +88,24 @@ class Game:
 
         return paths, beacons
 
+    def calculate_path_resources(self, path):
+        return sum(self.map[cell]['resources'] for cell in path)
+
     def calculate_priority(self, cell):
-        # Lower distance, higher resources and egg cells (when we have fewer ants) are preferred
-        distance = len(self.calculate_shortest_path(self.base, cell)) or float('inf')
-        resources = self.map[cell]['resources']
-        is_egg = self.map[cell]['type'] == Type.EGG
-        ant_ratio = self.total_my_ants / (self.total_my_ants + resources)
-        if is_egg:
-            priority = distance - resources * (1 - ant_ratio)
-        else:
-            priority = distance - resources * ant_ratio
+        # Calculate path and its properties
+        path = self.calculate_shortest_path(self.base, cell)
+        total_resources = self.calculate_path_resources(path)
+        average_resources_per_move = total_resources / len(path)
+        ant_ratio = self.total_my_ants / (self.total_my_ants + total_resources)
+        
+        # Prioritize closer cells and cells where our ants are less numerous
+        distance = len(path) or float('inf')
+        priority = distance - average_resources_per_move * ant_ratio
+        
+        # Additional consideration for egg cells when we have fewer ants
+        if self.map[cell]['type'] == Type.EGG:
+            priority -= average_resources_per_move * (1 - ant_ratio)
+
         return priority
 
     def calculate_shortest_path(self, start, end):
