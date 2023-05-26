@@ -77,14 +77,15 @@ class Game:
         remaining_ants = self.total_my_ants
         for cell in resource_cells:
             path = self.calculate_shortest_path(self.base, cell)
+            path_without_beacon = [cell for cell in path if cell not in beacons]
             # Only continue if we have enough ants to create a valid chain
-            if remaining_ants < len(path):
+            if remaining_ants < len(path_without_beacon):
                 break
             paths.append(path)
             strength = self.calculate_strength(cell)
             for cell in path:
                 beacons[cell] = max(beacons.get(cell, 0), strength)
-            remaining_ants -= len(path)
+            remaining_ants -= len(path_without_beacon)
 
         return paths, beacons
 
