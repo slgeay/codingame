@@ -99,14 +99,18 @@ class Game:
         total_resources = self.calculate_path_resources(path)
         average_resources_per_move = total_resources / len(path)
         ant_ratio = self.total_my_ants / (self.total_my_ants + total_resources)
-        
+
         # Prioritize closer cells and cells where our ants are less numerous
         distance = len(path) or float('inf')
         priority = distance - average_resources_per_move * ant_ratio
-        
-        # Additional consideration for egg cells when we have fewer ants
+
+        # Additional considerations
         if self.map[cell]['type'] == Type.EGG:
-            priority -= average_resources_per_move * (1 - ant_ratio)
+            egg_ratio = self.map[cell]['resources'] / self.total_my_ants
+            priority -= average_resources_per_move * egg_ratio
+        else:
+            crystal_ratio = self.map[cell]['resources'] / self.total_resources
+            priority -= average_resources_per_move * crystal_ratio
 
         return priority
 
