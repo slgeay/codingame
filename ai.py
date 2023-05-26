@@ -85,18 +85,28 @@ class Game:
         resource_cells.sort(key=lambda cell: min(self.calculate_priority(base, cell) for base in self.bases))
 
         remaining_ants = self.total_my_ants
+        max_paths = remaining_ants // 10
+        path_count = 0
+
         for cell in resource_cells:
+            if path_count >= max_paths:
+                break
+
             # Find the closest base for each cell
             closest_base, shortest_path = self.find_closest_base(cell)
             path_without_beacon = [cell for cell in shortest_path if cell not in beacons]
+
             # Only continue if we have enough ants to create a valid chain
             if remaining_ants < len(path_without_beacon):
-                break
+                continue
+
             paths.append(shortest_path)
             strength = self.calculate_strength(cell)
             for cell in shortest_path:
                 beacons[cell] = max(beacons.get(cell, 0), strength)
             remaining_ants -= len(path_without_beacon)
+
+            path_count += 1
 
         return paths, beacons
     
@@ -114,29 +124,15 @@ class Game:
 
         return closest_base, shortest_path
 
-    def calculate_path_resources(self, path):
-        return sum(self.map[cell]['resources'] for cell in path)
+    def calculate_path_resources(self, path, t):
+        return sum(self.map[cell]['resources'] for cell in path if self.map[cell]['type'] == t)
 
     def calculate_priority(self, base, cell):
         # Calculate path and its properties
         path = self.calculate_shortest_path(base, cell)
-        total_resources = self.calculate_path_resources(path)
-        average_resources_per_move = total_resources / len(path)
-        ant_ratio = self.total_my_ants / (self.total_my_ants + total_resources)
-
-        # Prioritize closer cells and cells where our ants are less numerous
-        distance = len(path) or float('inf')
-        priority = distance - average_resources_per_move * ant_ratio
-
-        # Additional considerations
-        if self.map[cell]['type'] == Type.EGG:
-            egg_ratio = self.map[cell]['resources'] / self.total_my_ants
-            priority -= average_resources_per_move * egg_ratio
-        else:
-            crystal_ratio = self.map[cell]['resources'] / self.total_resources
-            priority -= average_resources_per_move * crystal_ratio
-
-        return priority
+        total_eggs = self.calculate_path_resources(path, Type.EGG)
+        total_crystals = self.calculate_path_resources(path, Type.CRYSTAL)
+        return - (100 * total_eggs + total_crystals) / len(path) ** 4
 
     def calculate_shortest_path(self, start, end):
         # Initialize the priority queue with the start cell
