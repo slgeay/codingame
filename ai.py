@@ -42,10 +42,23 @@ class Game:
         self.opp_bases = list(map(int, input().split()))
 
     def play_turn(self):
+        self.read_turn_info()
+        paths, beacons = self.create_beacon_paths()
+        actions = self.generate_actions(beacons)
+
+        # If no actions, wait
+        if not actions:
+            actions.append("WAIT")
+        
+        # Print actions
+        print(";".join(actions))
+
+    def read_turn_info(self):
         self.cells_with_crystals = []
         self.cells_with_eggs = []
         self.total_resources = 0
         self.total_my_ants = 0
+
         # Read turn info
         for i in range(len(self.map)):
             cell_info = list(map(int, input().split()))
@@ -59,18 +72,11 @@ class Game:
             elif self.map[i]['type'] == Type.EGG and cell_info[0] > 0:
                 self.cells_with_eggs.append(i)
 
-        # Calculate paths and beacon strengths
-        paths, beacons = self.create_beacon_paths()
+    def generate_actions(self, beacons):
         actions = []
         for cell, strength in beacons.items():
             actions.append(f"BEACON {cell} {strength}")
-
-        # If no actions, wait
-        if not actions:
-            actions.append("WAIT")
-        
-        # Print actions
-        print(";".join(actions))
+        return actions
 
     def create_beacon_paths(self):
         paths = []
