@@ -1,15 +1,17 @@
 from enum import IntEnum
 from heapq import heappop, heappush
-import math
 import sys
+
 
 def debug(s):
     print(s, file=sys.stderr, flush=True)
+
 
 class Type(IntEnum):
     EMPTY = 0
     EGG = 1
     CRYSTAL = 2
+
 
 class Game:
     def __init__(self):
@@ -29,16 +31,16 @@ class Game:
         for i in range(number_of_cells):
             cell_info = list(map(int, input().split()))
             self.map[i] = {
-                'type': cell_info[0],
-                'resources': cell_info[1],
-                'neigh': cell_info[2:8]
+                "type": cell_info[0],
+                "resources": cell_info[1],
+                "neigh": cell_info[2:8],
             }
             if cell_info[0] == Type.CRYSTAL:
                 self.cells_with_crystals.append(i)
             elif cell_info[0] == Type.EGG:
                 self.cells_with_eggs.append(i)
-        
-        number_of_bases = int(input())
+
+        _ = int(input())
         self.bases = list(map(int, input().split()))
         self.opp_bases = list(map(int, input().split()))
 
@@ -50,7 +52,7 @@ class Game:
         # If no actions, wait
         if not actions:
             actions.append("WAIT")
-        
+
         # Print actions
         print(";".join(actions))
 
@@ -64,14 +66,14 @@ class Game:
         # Read turn info
         for i in range(len(self.map)):
             cell_info = list(map(int, input().split()))
-            self.map[i]['resources'] = cell_info[0]
-            self.map[i]['myAnts'] = cell_info[1]
-            self.map[i]['oppAnts'] = cell_info[2]
+            self.map[i]["resources"] = cell_info[0]
+            self.map[i]["myAnts"] = cell_info[1]
+            self.map[i]["oppAnts"] = cell_info[2]
             self.total_resources += cell_info[0]
             self.total_my_ants += cell_info[1]
-            if self.map[i]['type'] == Type.CRYSTAL and cell_info[0] > 0:
+            if self.map[i]["type"] == Type.CRYSTAL and cell_info[0] > 0:
                 self.cells_with_crystals.append(i)
-            elif self.map[i]['type'] == Type.EGG and cell_info[0] > 0:
+            elif self.map[i]["type"] == Type.EGG and cell_info[0] > 0:
                 self.cells_with_eggs.append(i)
 
     def generate_actions(self, beacons):
@@ -84,7 +86,11 @@ class Game:
         paths = []
         beacons = {}
         resource_cells = self.cells_with_crystals + self.cells_with_eggs
-        resource_cells.sort(key=lambda cell: min(self.calculate_priority(base, cell) for base in self.bases))
+        resource_cells.sort(
+            key=lambda cell: min(
+                self.calculate_priority(base, cell) for base in self.bases
+            )
+        )
 
         remaining_ants = self.total_my_ants
         max_paths = remaining_ants // 10
@@ -96,7 +102,9 @@ class Game:
 
             # Find the closest base for each cell
             closest_base, shortest_path = self.find_closest_base(cell)
-            path_without_beacon = [cell for cell in shortest_path if cell not in beacons]
+            path_without_beacon = [
+                cell for cell in shortest_path if cell not in beacons
+            ]
 
             # Only continue if we have enough ants to create a valid chain
             if remaining_ants < len(path_without_beacon):
@@ -111,11 +119,11 @@ class Game:
             path_count += 1
 
         return paths, beacons
-    
+
     def find_closest_base(self, cell):
         closest_base = None
         shortest_path = []
-        shortest_distance = float('inf')
+        shortest_distance = float("inf")
 
         for base in self.bases:
             path = self.calculate_shortest_path(base, cell)
@@ -127,29 +135,31 @@ class Game:
         return closest_base, shortest_path
 
     def calculate_path_resources(self, path, t):
-        return sum(self.map[cell]['resources'] for cell in path if self.map[cell]['type'] == t)
+        return sum(
+            self.map[cell]["resources"] for cell in path if self.map[cell]["type"] == t
+        )
 
     def calculate_priority(self, base, cell):
         # Calculate path and its properties
         path = self.calculate_shortest_path(base, cell)
         total_eggs = self.calculate_path_resources(path, Type.EGG)
         total_crystals = self.calculate_path_resources(path, Type.CRYSTAL)
-        return - (100 * total_eggs + total_crystals) / len(path) ** 4
+        return -(100 * total_eggs + total_crystals) / len(path) ** 4
 
     def calculate_shortest_path(self, start, end):
         # Get the precomputed path from start to end
         paths_from_start = self.precalculate_shortest_path(start)
         return paths_from_start.get(end, [])
-    
+
     def precalculate_shortest_path(self, start):
         if start in self.paths_from_base:
             return self.paths_from_base[start]
-        
+
         # Initialize the priority queue with the start cell
         queue = [(0, start)]  # (distance, cell)
 
         # Initialize the distances with a high value
-        distances = [float('inf')] * len(self.map)
+        distances = [float("inf")] * len(self.map)
         distances[start] = 0
 
         # Initialize the previous cell path
@@ -160,19 +170,19 @@ class Game:
             # Get the cell with the smallest known distance from the start
             current_distance, current_cell = heappop(queue)
             # Loop through each neighbour of the current cell
-            for neighbour in self.map[current_cell]['neigh']:
+            for neighbour in self.map[current_cell]["neigh"]:
                 # If the neighbour cell doesn't exist, skip
                 if neighbour == -1:
                     continue
 
                 # Calculate the distance to the neighbour cell, decreasing it if the cell has resources
                 distance = current_distance + 1  # Each move costs 1
-                if self.map[neighbour]['resources'] > 0:
-                    ratio = self.map[neighbour]['resources'] / self.total_resources
-                    if self.map[neighbour]['type'] == Type.CRYSTAL:
-                        distance -= ratio/self.total_resources
-                    elif self.map[neighbour]['type'] == Type.EGG:
-                        distance -= ratio/self.total_my_ants
+                if self.map[neighbour]["resources"] > 0:
+                    ratio = self.map[neighbour]["resources"] / self.total_resources
+                    if self.map[neighbour]["type"] == Type.CRYSTAL:
+                        distance -= ratio / self.total_resources
+                    elif self.map[neighbour]["type"] == Type.EGG:
+                        distance -= ratio / self.total_my_ants
 
                 # If this path to the neighbour cell is shorter, update our data
                 if distance < distances[neighbour]:
@@ -196,7 +206,8 @@ class Game:
     def calculate_strength(self, cell):
         return 1
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     game = Game()
     game.initialize()
     while True:
