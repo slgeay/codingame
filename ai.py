@@ -21,6 +21,7 @@ class Game:
         self.cells_with_eggs = []
         self.total_resources = 0
         self.total_my_ants = 0
+        self.paths_from_base = {}
 
     def initialize(self):
         # Read initial game state
@@ -58,6 +59,7 @@ class Game:
         self.cells_with_eggs = []
         self.total_resources = 0
         self.total_my_ants = 0
+        self.paths_from_base = {}
 
         # Read turn info
         for i in range(len(self.map)):
@@ -135,6 +137,14 @@ class Game:
         return - (100 * total_eggs + total_crystals) / len(path) ** 4
 
     def calculate_shortest_path(self, start, end):
+        # Get the precomputed path from start to end
+        paths_from_start = self.precalculate_shortest_path(start)
+        return paths_from_start.get(end, [])
+    
+    def precalculate_shortest_path(self, start):
+        if start in self.paths_from_base:
+            return self.paths_from_base[start]
+        
         # Initialize the priority queue with the start cell
         queue = [(0, start)]  # (distance, cell)
 
@@ -144,15 +154,11 @@ class Game:
 
         # Initialize the previous cell path
         previous_cells = [None] * len(self.map)
+        paths = {}  # To store paths from start to every other cell
 
         while queue:
             # Get the cell with the smallest known distance from the start
             current_distance, current_cell = heappop(queue)
-
-            # If we've reached the end cell, we're done
-            if current_cell == end:
-                break
-
             # Loop through each neighbour of the current cell
             for neighbour in self.map[current_cell]['neigh']:
                 # If the neighbour cell doesn't exist, skip
@@ -174,22 +180,24 @@ class Game:
                     previous_cells[neighbour] = current_cell
                     heappush(queue, (distance, neighbour))
 
-        # If we've reached the end cell, build and return the path
-        if current_cell == end:
+            # If we're here, it means we've finished checking all neighbours of current_cell,
+            # So we can create the shortest path from start to current_cell
             path = []
-            while current_cell is not None:
-                path.append(current_cell)
-                current_cell = previous_cells[current_cell]
+            temp_cell = current_cell
+            while temp_cell is not None:
+                path.append(temp_cell)
+                temp_cell = previous_cells[temp_cell]
             path.reverse()
-            return path
+            paths[current_cell] = path
 
-        # If there's no path to the end cell, return an empty list
-        return []
+        self.paths_from_base[start] = paths  # Store all paths from this start node
+        return paths
 
     def calculate_strength(self, cell):
         return 1
 
-game = Game()
-game.initialize()
-while True:
-    game.play_turn()
+if __name__ == '__main__':
+    game = Game()
+    game.initialize()
+    while True:
+        game.play_turn()
