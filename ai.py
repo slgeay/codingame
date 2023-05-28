@@ -99,6 +99,7 @@ class Spring2023AntsAI:
         return actions
 
     def compute_weighted_factor(self, i):
+        # Initialize the inputs with various game state attributes
         inputs = [
             1,
             len(self.bases),
@@ -109,6 +110,7 @@ class Spring2023AntsAI:
             self.total_resources,
             self.total_my_ants,
         ]
+        # Multiply each input with a corresponding weight
         i *= len(inputs)
         return sum(self.weights[i + j] * x for j, x in enumerate(inputs))
 
@@ -119,6 +121,8 @@ class Spring2023AntsAI:
         paths = []
         beacons = {}
         resource_cells = self.cells_with_crystals + self.cells_with_eggs
+
+        # Sort the resource cells by priority calculated using distance and resources
         resource_cells.sort(
             key=lambda cell: min(
                 self.calculate_priority(base, cell) for base in self.bases
@@ -130,6 +134,7 @@ class Spring2023AntsAI:
         path_count = 0
 
         for cell in resource_cells:
+            # Check if the maximum path count has been reached
             if path_count >= max_paths:
                 break
 
@@ -143,12 +148,14 @@ class Spring2023AntsAI:
             if remaining_ants < len(path_without_beacon):
                 continue
 
+            # Update the paths and beacons with the shortest path and its strength
             paths.append(shortest_path)
             strength = self.calculate_strength(cell)
             for cell in shortest_path:
                 beacons[cell] = max(beacons.get(cell, 0), strength)
             remaining_ants -= len(path_without_beacon)
 
+            # Increase the path count
             path_count += 1
 
         return paths, beacons
@@ -173,10 +180,15 @@ class Spring2023AntsAI:
         )
 
     def calculate_priority(self, base, cell):
-        # Calculate path and its properties
+        # Calculate the shortest path from the base to the cell
         path = self.calculate_shortest_path(base, cell)
+        
+        # Calculate the total resources in the path
         total_eggs = self.calculate_path_resources(path, Type.EGG)
         total_crystals = self.calculate_path_resources(path, Type.CRYSTAL)
+
+        # Return a priority value based on the resource totals and path length
+        # The priority is calculated as the weighted sum of total eggs and crystals divided by the path length
         return -(
             self.ccwf(1, 0, 1000) * total_eggs + self.ccwf(2, 0, 100) * total_crystals
         ) / len(path) ** self.ccwf(3, 0, 10)
@@ -252,7 +264,11 @@ class Spring2023AntsAI:
         return paths
 
     def calculate_strength(self, cell):
+        # Calculate the shortest path from the closest base to the cell
         _, shortest_path = self.find_closest_base(cell)
+        
+        # Calculate the strength of the path based on the distance and resources
+        # The strength is calculated as a weighted product of resources and distance, clamped between 1 and 100
         distance = len(shortest_path)
         resources = self.map[cell]["resources"]
         return math.ceil(
