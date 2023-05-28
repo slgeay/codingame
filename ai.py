@@ -1,10 +1,21 @@
 from enum import IntEnum
 from heapq import heappop, heappush
+import math
 import sys
 
 
-def debug(s):
+WEIGHTS_COUNT = 8 * 12
+DEFAULT_WEIGHTS = [
+    0,0,0,0,0,0,0,0.1,100,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,4,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0  # noqa
+]
+
+
+def debug(s: str):
     print(s, file=sys.stderr, flush=True)
+
+
+def clamp(value, min_value, max_value):
+    return max(min(value, max_value), min_value)
 
 
 class Type(IntEnum):
@@ -13,17 +24,20 @@ class Type(IntEnum):
     CRYSTAL = 2
 
 
-class Game:
-    def __init__(self):
+class Spring2023AntsAI:
+    def __init__(self, weights=DEFAULT_WEIGHTS):
         # Initialization
         self.map = {}
         self.bases = []
         self.opp_bases = []
         self.cells_with_crystals = []
         self.cells_with_eggs = []
+        self.total_crystals = 0
+        self.total_eggs = 0
         self.total_resources = 0
         self.total_my_ants = 0
         self.paths_from_base = {}
+        self.weights = weights
 
     def initialize(self):
         # Read initial game state
@@ -72,8 +86,10 @@ class Game:
             self.total_resources += cell_info[0]
             self.total_my_ants += cell_info[1]
             if self.map[i]["type"] == Type.CRYSTAL and cell_info[0] > 0:
+                self.total_crystals += cell_info[0]
                 self.cells_with_crystals.append(i)
             elif self.map[i]["type"] == Type.EGG and cell_info[0] > 0:
+                self.total_eggs += cell_info[0]
                 self.cells_with_eggs.append(i)
 
     def generate_actions(self, beacons):
@@ -81,6 +97,23 @@ class Game:
         for cell, strength in beacons.items():
             actions.append(f"BEACON {cell} {strength}")
         return actions
+
+    def compute_weighted_factor(self, i):
+        inputs = [
+            1,
+            len(self.bases),
+            len(self.cells_with_crystals),
+            len(self.cells_with_eggs),
+            self.total_crystals,
+            self.total_eggs,
+            self.total_resources,
+            self.total_my_ants,
+        ]
+        i *= len(inputs)
+        return sum(self.weights[i + j] * x for j, x in enumerate(inputs))
+
+    def ccwf(self, i, min, max):
+        return clamp(self.compute_weighted_factor(i), min, max)
 
     def create_beacon_paths(self):
         paths = []
@@ -93,7 +126,7 @@ class Game:
         )
 
         remaining_ants = self.total_my_ants
-        max_paths = remaining_ants // 10
+        max_paths = math.floor(self.ccwf(0, 1, remaining_ants))
         path_count = 0
 
         for cell in resource_cells:
@@ -101,7 +134,7 @@ class Game:
                 break
 
             # Find the closest base for each cell
-            closest_base, shortest_path = self.find_closest_base(cell)
+            _, shortest_path = self.find_closest_base(cell)
             path_without_beacon = [
                 cell for cell in shortest_path if cell not in beacons
             ]
@@ -144,7 +177,9 @@ class Game:
         path = self.calculate_shortest_path(base, cell)
         total_eggs = self.calculate_path_resources(path, Type.EGG)
         total_crystals = self.calculate_path_resources(path, Type.CRYSTAL)
-        return -(100 * total_eggs + total_crystals) / len(path) ** 4
+        return -(
+            self.ccwf(1, 0, 1000) * total_eggs + self.ccwf(2, 0, 100) * total_crystals
+        ) / len(path) ** self.ccwf(3, 0, 10)
 
     def calculate_shortest_path(self, start, end):
         # Get the precomputed path from start to end
@@ -178,11 +213,24 @@ class Game:
                 # Calculate the distance to the neighbour cell, decreasing it if the cell has resources
                 distance = current_distance + 1  # Each move costs 1
                 if self.map[neighbour]["resources"] > 0:
-                    ratio = self.map[neighbour]["resources"] / self.total_resources
                     if self.map[neighbour]["type"] == Type.CRYSTAL:
-                        distance -= ratio / self.total_resources
+                        distance -= clamp(
+                            self.map[neighbour]["resources"]
+                            * self.ccwf(4, 0, 10)
+                            / self.ccwf(5, 1, 100)
+                            / self.ccwf(6, 1, 100),
+                            0,
+                            0.99,
+                        )
                     elif self.map[neighbour]["type"] == Type.EGG:
-                        distance -= ratio / self.total_my_ants
+                        distance -= clamp(
+                            self.map[neighbour]["resources"]
+                            * self.ccwf(7, 0, 10)
+                            / self.ccwf(8, 1, 100)
+                            / self.ccwf(9, 1, 100),
+                            0,
+                            0.99,
+                        )
 
                 # If this path to the neighbour cell is shorter, update our data
                 if distance < distances[neighbour]:
@@ -204,11 +252,34 @@ class Game:
         return paths
 
     def calculate_strength(self, cell):
-        return 1
+        _, shortest_path = self.find_closest_base(cell)
+        distance = len(shortest_path)
+        resources = self.map[cell]["resources"]
+        return math.ceil(
+            clamp(
+                self.ccwf(10, 0, 10) * resources * distance ** self.ccwf(11, -2, 2),
+                1,
+                100,
+            )
+        )
+
+    def read_weights(s: str):
+        return [float(w) for w in s.split(",")]
 
 
 if __name__ == "__main__":
-    game = Game()
-    game.initialize()
+    try:
+        with open(sys.argv[1], "r") as f:
+            s = f.read()
+    except Exception:
+        s = None
+    
+    if s:
+        weights = Spring2023AntsAI.read_weights(s)
+        ai = Spring2023AntsAI(weights)
+    else:
+        ai = Spring2023AntsAI()
+    
+    ai.initialize()
     while True:
-        game.play_turn()
+        ai.play_turn()
