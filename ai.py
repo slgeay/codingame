@@ -4,9 +4,9 @@ import math
 import sys
 
 
-WEIGHTS_COUNT = 8 * 12
+WEIGHTS_COUNT = 10 * 12
 DEFAULT_WEIGHTS = [
-    0,0,0,0,0,0,0,0.1,100,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,4,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0  # noqa
+    0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.1,0.0,0.0,100.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,4.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
 ]
 
 
@@ -38,6 +38,9 @@ class Spring2023AntsAI:
         self.total_my_ants = 0
         self.paths_from_base = {}
         self.weights = weights
+        self.myScore = 0
+        self.oppScore = 0
+        self.max_crystals = 0
 
     def initialize(self):
         # Read initial game state
@@ -51,6 +54,7 @@ class Spring2023AntsAI:
             }
             if cell_info[0] == Type.CRYSTAL:
                 self.cells_with_crystals.append(i)
+                self.max_crystals += cell_info[1]
             elif cell_info[0] == Type.EGG:
                 self.cells_with_eggs.append(i)
 
@@ -76,6 +80,10 @@ class Spring2023AntsAI:
         self.total_resources = 0
         self.total_my_ants = 0
         self.paths_from_base = {}
+
+        self.myScore, self.oppScore = map(int, input().split())
+        self.myScore /= self.max_crystals
+        self.oppScore /= self.max_crystals
 
         # Read turn info
         for i in range(len(self.map)):
@@ -109,6 +117,8 @@ class Spring2023AntsAI:
             self.total_eggs,
             self.total_resources,
             self.total_my_ants,
+            self.myScore,
+            self.oppScore,
         ]
         # Multiply each input with a corresponding weight
         i *= len(inputs)

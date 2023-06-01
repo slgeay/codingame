@@ -12,6 +12,7 @@ from genetic_algorithm import (
     MAIN,
     Spring2023AntsGeneticAlgorithm,
 )
+from migration import migrate_directory
 
 
 @click.group()
@@ -50,6 +51,13 @@ def test() -> None:
     """Test to create AIs"""
     Spring2023AntsAI()
     Spring2023AntsAI([randint(GENE_MIN, GENE_MAX) for _ in range(WEIGHTS_COUNT)])
+
+
+@main.command()
+@click.argument("directory")
+def migrate(directory: str) -> None:
+    """Migrate from Bronze weights to Silver weights"""
+    migrate_directory(directory)
 
 
 if __name__ == "__main__":

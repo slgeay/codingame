@@ -5,7 +5,7 @@ import subprocess
 from math import ceil
 from multiprocessing import Pool
 from multiprocessing.pool import AsyncResult
-from os import mkdir, scandir
+from os import cpu_count, mkdir, scandir
 from os.path import isdir
 from random import randint, random, randrange, sample, uniform
 from re import match
@@ -25,10 +25,10 @@ GENE_MUTATE_RATIO = 0.05
 CROSSOVER_RATIO = 0.95
 PREVIOUS_SCORE_RATIO = 1
 
-GENERATIONS_MAX = 1000
+GENERATIONS_MAX = 10000
 
-POOL_SIZE = 3
-ROUNDS_PER_GENERATION = 20
+POOL_SIZE = cpu_count() // 2
+ROUNDS_PER_GENERATION = 50
 
 
 def unzip(zipped) -> Tuple:
@@ -227,7 +227,7 @@ class GeneticAlgorithm(Generic[P]):
             )
             print(str(self.scores))
 
-            with open(f".chromosomes/{generation:05}__best.txt", "w") as f:
+            with open(f".bests/{generation:05}_{best.id}.txt", "w") as f:
                 f.write(str(best))
 
     def initialize(self) -> None:
@@ -465,6 +465,7 @@ class Spring2023AntsGeneticAlgorithm(GeneticAlgorithm[Spring2023AntsPopulation])
 
         for player_1, player_2, res in results:
             result = res.get()
+            assert result[0] != -1 and result[1] != -1, result
             # print(self.population.chromosomes[player_1].id, self.population.chromosomes[player_2].id)
             # print(result)
             if result[0] == result[1]:

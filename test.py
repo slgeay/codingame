@@ -1,6 +1,7 @@
 import pytest
 
 from ai import Spring2023AntsAI, Type
+from migration import add_zeros, process_content
 
 
 @pytest.fixture
@@ -95,3 +96,14 @@ def test_calculate_priority(ai):
 
     assert priority1 == -0.625
     assert priority2 == -6.296296296296297
+
+
+def test_add_zeros():
+    assert add_zeros([1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]) == [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 0.0, 0.0]
+    assert add_zeros([1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0]) == [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 0.0, 0.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 0.0, 0.0]
+
+
+def test_process_content():
+    assert process_content("1.0,2.0,3.0,4.0,5.0,6.0,7.0,8.0") == "1.0,2.0,3.0,4.0,5.0,6.0,7.0,8.0,0.0,0.0"
+    assert process_content("1.0,2.0,3.0,4.0,5.0,6.0,7.0,8.0,9.0,10.0,11.0,12.0,13.0,14.0,15.0,16.0") == "1.0,2.0,3.0,4.0,5.0,6.0,7.0,8.0,0.0,0.0,9.0,10.0,11.0,12.0,13.0,14.0,15.0,16.0,0.0,0.0"
+
