@@ -13,3 +13,4 @@ However, the ants **cannot be controlled directly**. The ants will respond to th
 - [Wood 2 League](docs/WOOD_2.md)
 - [Wood 1 League](docs/WOOD_1.md)
 - [Bronze League](docs/BRONZE.md)
+- [Gold League](docs/GOLD.md)
