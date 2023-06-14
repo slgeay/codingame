@@ -17,12 +17,12 @@ from ai import WEIGHTS_COUNT, clamp, Spring2023AntsAI
 from numpy.random import choice
 
 CHROMOSOME_SIZE = WEIGHTS_COUNT
-POPULATION_SIZE = 100
+POPULATION_SIZE = 50
 
-ELITE_RATIO = 0.1
-CHROMOSOME_MUTATE_RATIO = 0.05
-GENE_MUTATE_RATIO = 0.05
-CROSSOVER_RATIO = 0.95
+ELITE_RATIO = 0.2
+CHROMOSOME_MUTATE_RATIO = 0.9
+GENE_MUTATE_RATIO = 0.1
+CROSSOVER_RATIO = 0.1
 PREVIOUS_SCORE_RATIO = 1
 
 GENERATIONS_MAX = 10000
@@ -367,7 +367,8 @@ class Spring2023AntsGene(Gene):
         )
 
     def mutate(self, _: Optional[Gene] = None) -> None:
-        self.synapse_weight = self._random()
+        delta = max(0.5, abs(self.synapse_weight) * 0.1)
+        self.synapse_weight = uniform(self.synapse_weight - delta, self.synapse_weight + delta)
 
 
 class Spring2023AntsChromosome(Chromosome[Spring2023AntsGene]):
