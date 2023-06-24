@@ -255,7 +255,7 @@ class GeneticAlgorithm(Generic[P]):
         self.populations.append(self._P()(generation, new_population))
 
 
-SURFACE_N_MIN, SURFACE_N_MAX = 2, 29
+SURFACE_N_MIN, SURFACE_N_MAX = 2, 9 # 29
 X_MIN, X_MAX = 0, 6999
 Y_MIN, Y_MAX = 0, 2999
 SPEED_MIN, SPEED_MAX = -499, 499
@@ -266,6 +266,7 @@ POWER_MIN, POWER_MAX = 0, 4
 POWER_DELTA_MIN, POWER_DELTA_MAX = -1, 1
 FIRST_ROUND_TIME = 1000
 ROUND_TIME = 100
+GRAVITY = 3.711
 
 
 class LanderGene(Gene):
@@ -431,4 +432,13 @@ class LanderSimulation(Generic[C]):
         )
 
     def run(self):
+        while True:
+            self.step()
+            if self.is_crash():
+                return
+            if self.is_land():
+                return
+        pass
+
+    def step(self):
         pass
