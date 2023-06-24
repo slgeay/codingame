@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "cg-cvz"
+version = "0.1.0"
+description = "CodinGame: Code vs Zombies"
+authors = ["slgeay <avomailbox-github@yahoo.fr>"]
+
+[tool.poetry.dependencies]
+python = "3.8"
+tensorflow = "^2.9.1"
+numpy = "^1.22.4"
+
+[tool.poetry.dev-dependencies]
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
