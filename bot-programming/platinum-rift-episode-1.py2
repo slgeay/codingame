@@ -1,0 +1,251 @@
+import sys, math, random, operator
+
+POD_COST = 20
+
+def if_then_else(condition, out1, out2):
+    return out1 if condition else out2
+
+# Define new functions
+def safeDiv(left, right):
+    try:
+        return left / right
+    except ZeroDivisionError:
+        return 0
+
+def rndWeightedChoice(weights):
+    rnd = random.random() * sum(weights)
+    for i, w in enumerate(weights):
+        rnd -= w
+        if rnd < 0:
+            return i
+    return -1
+    
+class Individual:
+    pass
+  
+class Zone:
+    def __init__(self, z):
+        self.z = z
+        
+    def getZone(self):
+        return self
+    
+    
+class Challenger:
+
+    def __init__(self, ind):
+        self.ind = ind
+        self.playerCount = 0
+        self.myID = 0
+        self.enemies = []
+        self.zoneCount = 0
+        self.linkCount = 0
+        self.sourcesL = []
+        self.linksL = []
+        self.inPlatinum = 0
+        self.inZones = []
+        self.outMove = "WAIT"
+        self.outBuy = "WAIT"
+        self.ownerL = []
+        self.podsL = []
+        self.continentsL = []
+       
+       
+    def getChallenger(self):
+        return self
+       
+    def getSource(self, zone):
+        return self.sourcesL[zone.z]
+        
+    def isMine(self, zone):
+        return self.ownerL[zone.z] == self.myID
+        
+    def isNeutral(self, zone):
+        return self.ownerL[zone.z] == -1
+        
+    def isEnemy(self, zone):
+        return self.ownerL[zone.z] != self.myID and self.ownerL[zone.z] != -1
+        
+    def getMyPods(self, zone):
+        return self.podsL[zone.z][self.myID]
+        
+    def getMaxEnemyPods(self, zone):
+        return max(map(lambda id:self.podsL[zone.z][id], self.enemies))
+    
+    
+    def getMaxCloseEnemyPods(self, zone):
+        return max(map(lambda id:sum(map(lambda z2:self.podsL[z2][id], self.linksL[zone.z])), self.enemies))
+        
+    def getContinentSize(self, zone):
+        for c in self.continentsL:
+            if zone.z in c:
+                return len(c)
+        return -1
+        
+    def getContinentNeutral(self, zone):
+        for c in self.continentsL:
+            if zone.z in c:
+                return map(lambda z: self.ownerL[z], c).count(-1)
+        return -1
+        
+    def getContinentEnemy(self, zone):
+        for c in self.continentsL:
+            if zone.z in c:
+                return len(c) - map(lambda z: self.ownerL[z], c).count(-1) - map(lambda z: self.ownerL[z], c).count(self.myID)
+        return -1
+        
+    def _queueDistOpen(self, todo, done):
+        cur = todo.pop(0)
+        zone = cur[0]
+        dist = cur[1]
+        self.distOpenL[zone] = dist
+        for l in self.linksL[zone]:
+            if not l in done:
+                todo.append((l, dist+1))
+                done.append(l)
+        
+    def _updateDistOpen(self):
+        dist = 0
+        todo = []
+        done = []
+        self.distOpenL = [0] * self.zoneCount
+        for z in range(self.zoneCount):
+            if self.ownerL[z] != self.myID:
+                todo.append((z, 1))
+                done.append(z)
+        while len(todo) != 0:
+            dist = self._queueDistOpen(todo, done)
+            
+    def getDistOpen(self, zone):
+        return self.distOpenL[zone.z]
+        
+    def _isContinentOpen(self, zone):
+        for c in self.continentsL:
+            if zone in c:
+                return len(c) > map(lambda z: self.ownerL[z], c).count(self.myID)
+        
+       
+    
+    def _recursiveMakeContinent(self, zonesL, currentContinentL, zone):
+        zonesL.remove(zone)
+        currentContinentL.append(zone)
+        for z in self.linksL[zone]:
+            if z in zonesL:
+                self._recursiveMakeContinent(zonesL, currentContinentL, z)
+
+                
+    def init(self):
+        self.playerCount, self.myID, self.zoneCount, self.linkCount = [int(i) for i in raw_input().split()]
+        self.enemies = [id for id in range(self.playerCount) if id != self.myID]
+        
+        self.sourcesL = [0] * self.zoneCount
+        for z in xrange(self.zoneCount):
+            zoneId, platinumSource = [int(i) for i in raw_input().split()]
+            self.sourcesL[zoneId] = platinumSource
+            
+        self.linksL = [[] for _ in range(self.zoneCount)]
+        for l in xrange(self.linkCount):
+            zone1, zone2 = [int(i) for i in raw_input().split()]
+            self.linksL[zone1].append(zone2)
+            self.linksL[zone2].append(zone1)
+            
+        zonesL = range(self.zoneCount)
+        while(len(zonesL)>0):
+            currentContinentL = []
+            self._recursiveMakeContinent(zonesL, currentContinentL, zonesL[0])
+            self.continentsL.append(currentContinentL)
+            
+    
+    def _computeDepl(self):
+        self.outMove = ""
+        
+        def __weightMove(z, z2):
+            combatZone = False
+            for p in xrange(self.playerCount):
+                if p != self.myID and self.podsL[z][p] > 0:
+                    combatZone = True
+                    break
+            if combatZone and not (self.ownerL[z2] in [-1, self.myID]):
+                return 0
+            if not self._isContinentOpen(z):
+                return 0
+            else:
+                return max(0,self.ind.funcMove(self,Zone(z), Zone(z2)))
+                
+        def __weightStand(z):
+            return max(0,self.ind.funcStand(self,Zone(z)))
+                
+        for z in range(self.zoneCount):
+            maxpods = self.podsL[z][self.myID]
+            if maxpods == 0:
+                continue
+            links = self.linksL[z]
+            w = map(lambda z2: __weightMove(z, z2), links)
+            w.append(__weightStand(z))
+            
+            p = [0] * len(w)
+            for i in range(maxpods):
+                p[rndWeightedChoice(w)] += 1
+                
+            for l in range(len(links)):
+                if p[l] > 0:
+                    self.outMove += "{} {} {} ".format(p[l], z, links[l])
+            
+        if self.outMove == "":
+            self.outMove = "WAIT"
+        
+    def _computeBuy(self):
+        self.outBuy = ""
+        
+        maxpods = self.inPlatinum // POD_COST
+        if maxpods == 0:
+            self.outBuy = "WAIT"
+            return
+        
+        def __weight(z):
+            if self.isEnemy(Zone(z)):
+                return 0
+            if not self._isContinentOpen(z):
+                return 0
+            else:
+                return max(0,self.ind.funcBuy(self,Zone(z)))
+                
+        w = map(__weight, range(self.zoneCount))
+        p = [0] * len(w)
+        for i in range(maxpods):
+            p[rndWeightedChoice(w)] += 1
+            
+        for z in range(self.zoneCount):
+            if p[z] > 0:
+                self.outBuy += "{} {} ".format(p[z], z)
+                
+        if self.outBuy == "":
+            self.outBuy = "WAIT"
+    
+    def update(self):
+        self.inPlatinum = int(raw_input())
+        self.ownerL = [-1] * self.zoneCount
+        self.podsL =[[] for _ in range(self.zoneCount)]
+        for z in xrange(self.zoneCount):
+            zId, ownerId, podsP0, podsP1, podsP2, podsP3 = [int(i) for i in raw_input().split()]
+            self.ownerL[zId] = ownerId
+            self.podsL[zId] = [podsP0, podsP1, podsP2, podsP3]
+            
+        self._updateDistOpen()
+        self._computeDepl()
+        self._computeBuy()
+
+
+ind = Individual()
+ind.funcStand = lambda self, zone: operator.add(self.getMaxEnemyPods(zone),self.getMaxCloseEnemyPods(zone))
+ind.funcMove = lambda self, zone, zone2: operator.add(operator.pow(2, operator.neg(self.getDistOpen(zone2))) if self.isMine(zone2) else operator.add(self.getSource(zone2), if_then_else(self.isNeutral(zone2),3,5)),self.getMaxCloseEnemyPods(zone2))
+ind.funcBuy = lambda self, zone: operator.add(operator.add(operator.sub(self.getSource(zone), self.getMyPods(zone)), self.getMaxCloseEnemyPods(zone)), self.getMaxEnemyPods(zone))
+challenger = Challenger(ind)
+
+challenger.init()
+
+while 1:
+    challenger.update()
+    
+    print challenger.outMove
+    print challenger.outBuy
