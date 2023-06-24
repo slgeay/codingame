@@ -24,7 +24,7 @@ def launch() -> None:
         [
             "/usr/lib/jvm/java-8-openjdk-amd64/bin/java",
             "-cp",
-            "/tmp/cp_7wdcdfymzs7kpssaoh0wot2cw.jar",
+            "cp_7wdcdfymzs7kpssaoh0wot2cw.jar",
             "SkeletonMain",
             "Toto",
             "Titi",

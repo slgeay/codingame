@@ -19,7 +19,7 @@ POPULATION_SIZE = 20
 
 ELITE_RATIO = 0.1
 CHROMOSOME_MUTATE_RATIO = 0.1
-GENE_MUTATE_RATIO = 0.1
+GENE_MUTATE_RATIO = 0.0001
 CROSSOVER_RATIO = 1.0
 PREVIOUS_SCORE_RATIO = 0.25
 
@@ -259,7 +259,9 @@ class GeneticAlgorithm(Generic[P]):
     def get_score(self, chromosome: C) -> float:
         pass
 
-    def sort(self, scores: List[float], chromosomes: List[C]) -> Tuple[List[float], List[C]]:
+    def sort(
+        self, scores: List[float], chromosomes: List[C]
+    ) -> Tuple[List[float], List[C]]:
         return unzip(  # type: ignore
             sorted(
                 zip(scores, chromosomes),
@@ -480,7 +482,7 @@ class GreenCircleGeneticAlgorithm(GeneticAlgorithm[GreenCirclePopulation]):
                     [
                         "/usr/lib/jvm/java-8-openjdk-amd64/bin/java",
                         "-cp",
-                        "/tmp/cp_7wdcdfymzs7kpssaoh0wot2cw.jar",
+                        "cp_7wdcdfymzs7kpssaoh0wot2cw.jar",
                         "SkeletonMain",
                         chromosome_1.get_file_name(),
                         chromosome_2.get_file_name(),
