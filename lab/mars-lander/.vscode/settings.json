@@ -1,0 +1,9 @@
+{
+    "makefile.extensionOutputFolder": "./.vscode",
+    "python.analysis.completeFunctionParens": true,
+    "python.defaultInterpreterPath": "~/.cache/pypoetry/virtualenvs/cg-ml-HIFObTuT-py3.9/bin/python",
+    "python.autoComplete.extraPaths": [
+    
+    ],
+    "python.analysis.extraPaths": []
+}
