@@ -1,3 +1,4 @@
+mod clash;
 mod puzzles;
 
 fn main() {
