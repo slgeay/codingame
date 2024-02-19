@@ -1,1 +1,5 @@
 .cg_local_app
+
+# Added by cargo
+
+/target
