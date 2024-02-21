@@ -1,2 +1,3 @@
-.cg_local_app
+/.cg_local_app
 /target
+/src/clash.*
