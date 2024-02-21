@@ -1,5 +1,5 @@
 param (
-    [string]$Option = $(Read-Host "Choose what to delete (Clash, Lab, Solutions, Everything)")
+    [string]$Option = $(Read-Host "Choose what to clean (Clash, Lab, Solutions, Everything)")
 )
 
 function Remove-ItemFiles {
@@ -11,7 +11,7 @@ function Remove-ItemFiles {
     Write-Host "Deleted all files in $Path"
 }
 
-$confirmation = Read-Host "Are you sure you want to delete $($Option)? (yes/no)"
+$confirmation = Read-Host "Are you sure you want to clean $($Option)? (yes/no)"
 if ($confirmation -eq 'yes') {
     switch ($Option) {
         "Clash" {

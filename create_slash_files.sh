@@ -1,42 +1,31 @@
 #!/bin/bash
 
 directoryPath="./src/clash/"
-extensions=(
-    # "sh"
-    "c"
-    # "cs"
-    "cpp"
-    # "clj"
-    # "d"
-    # "dart"
-    # "fs"
-    # "go"
-    # "groovy"
-    # "hs"
-    # "java"
-    # "js"
-    # "kt"
-    # "lua"
-    # "m"
-    # "ml"
-    # "pas"
-    # "pl" # dss
-    "php"
-    "py"
-    # "rb"
-    "rs"
-    # "scala"
-    # "swift"
-    # "ts"
-    # "vb"
-)
+iniPath="languages.ini"
+
+declare -a extensions
+declare -a languages
+currentLanguage=""
+extension=""
+enabled=""
+
+while IFS='=' read -r key value; do
+    if [[ $key =~ ^\[.*\]$ ]]; then
+        currentLanguage=${key:1:-1}
+    elif [[ $key == "extension" ]]; then
+        currentExtension=$value
+    elif [[ $key == "enabled" && $value -eq 1 ]]; then
+        extensions+=("$currentExtension")
+        languages+=("$currentLanguage ($currentExtension)")
+    fi
+done < "$iniPath"
 
 if [ ! -d "$directoryPath" ]; then
     mkdir -p "$directoryPath"
 fi
 
 for extension in "${extensions[@]}"; do
-    fileName="$directoryPath/clash.$extension"
+    fileName="$directoryPath/clash$extension"
     if [ ! -f "$fileName" ]; then
         echo "Creating $fileName"
         touch "$fileName"
