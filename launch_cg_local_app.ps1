@@ -1,11 +1,26 @@
-$s = curl -s https://api.github.com/repos/jmerle/cg-local-app/releases/latest | findstr /r /c:"cg-local-app.*jar"
-$r = [regex]::matches($s,'"([^"]*jar)"')
-$d = ".cg_local_app\"
-$f = $d+$r[0].Groups[1].Value
-if (-Not (Test-Path $f)) {
-    if (-Not (Test-Path $d)) {
-        New-Item -ItemType Directory -Force -Path $d
+$apiUrl = "https://api.github.com/repos/jmerle/cg-local-app/releases/latest"
+$downloadDir = ".\.cg_local_app\"
+
+try {
+    $latestRelease = Invoke-RestMethod -Uri $apiUrl
+    $jarUrl = $latestRelease.assets | Where-Object { $_.name -match "cg-local-app.*\.jar$" } | Select-Object -ExpandProperty browser_download_url
+
+    if (-not $jarUrl) {
+        Write-Error "JAR URL not found."
+        exit
     }
-    Invoke-WebRequest -Uri $r[1].Groups[1].Value -OutFile $f
+
+    $filePath = Join-Path -Path $downloadDir -ChildPath ($jarUrl -split "/" | Select-Object -Last 1)
+
+    if (-Not (Test-Path -Path $filePath)) {
+        if (-Not (Test-Path -Path $downloadDir)) {
+            New-Item -ItemType Directory -Force -Path $downloadDir
+        }
+        Write-Host "Downloading cg-local-app JAR..."
+        Invoke-WebRequest -Uri $jarUrl -OutFile $filePath
+    }
+
+    java -jar $filePath
+} catch {
+    Write-Error "An error occurred: $_"
 }
-java -jar $f
