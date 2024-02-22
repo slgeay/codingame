@@ -39,13 +39,16 @@ The repository is structured as follows:
 ## Requirements
 
 ### General
+
 - **Java Runtime Environment (JRE)**: Required for CG Local Application.
 - **[CG Local Extension](https://github.com/jmerle/cg-local-ext)**: Needed for communicating with the CG Local Application.
 
 ### Windows
+
 - **PowerShell**: For executing `.ps1` scripts.
 
 ### Linux/macOS
+
 - **Bash**: For executing `.sh` scripts.
 - **curl**: Needed by `launch_cg_local_app.sh` to fetch the latest app version.
 - **jq**: Required by `launch_cg_local_app.sh` for parsing JSON data.
@@ -65,20 +68,19 @@ The repository is structured as follows:
 
 
 ### Linux
-- `java.awt.HeadlessException: No X11 DISPLAY variable was set, or no headful library support was found, but this program performed an operation which requires it`
 
-  Due to a headless JRE. Uninstall your headless JRE and install a headfull JRE
+#### `java.awt.HeadlessException: No X11 DISPLAY variable was set, or no headful library support was found, but this program performed an operation which requires it`
+
+  Due to a headless JRE. Uninstall your headless JRE and install a headfull JRE.
   ```sh
   sudo apt remove openjdk-<version>-jre-headless
   sudo apt install openjdk-<version>-jre
   ```
-- `java: symbol lookup error: (...)/libpthread.so.0: undefined symbol: __libc_pthread_init, version GLIBC_PRIVATE`:
 
-  Due to VSCode taking over GTK_PATH. To fix it, run `unset GTK_PATH` before launching the CG Local Application.
-  As a slightly more permanent workaround, you can also unset `GTK_PATH` in your VS Code user settings, run "Preferences: Open User Settings (JSON)" and add this to your `settings.json`:
-   ```json
-    "terminal.integrated.env.linux": {
-        "GTK_PATH": ""
-    }
-    ``` 
+#### `java: symbol lookup error: (...)/libpthread.so.0: undefined symbol: __libc_pthread_init, version GLIBC_PRIVATE`:
+
+  Due to VSCode taking over `GTK_PATH`. Should be fixed by `.vscode/settings.json`. If not you can always unset it manually.
+  ```sh
+  unset GTK_PATH
+  ```
 
