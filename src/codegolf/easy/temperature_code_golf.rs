@@ -1,0 +1,1 @@
+use std::io;macro_rules! p{($x:expr)=>($x.parse::<i32>().unwrap())}fn read(mut s:&mut String){io::stdin().read_line(&mut s).unwrap();}fn main(){let mut s=String::new();read(&mut s);s.clear();read(&mut s);println!("{}",s.split_whitespace().map(|x|p!(x)).reduce(|a,t|{if t.abs()<a.abs()||(t.abs()==a.abs()&&t>a){t}else{a}}).unwrap_or(0))}
