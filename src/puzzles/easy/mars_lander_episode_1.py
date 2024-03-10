@@ -1,12 +1,21 @@
+import sys
+import math
+
 surface_n = int(input())  # the number of points used to draw the surface of Mars.
 surface = []
 for i in range(surface_n):
     # land_x: X coordinate of a surface point. (0 to 6999)
     # land_y: Y coordinate of a surface point. By linking all the points together in a sequential fashion, you form the surface of Mars.
-    land_x, land_y = [int(j) for j in input().split()]
-    surface.append((land_x, land_y))
+    surface.append((int(j) for j in input().split()))
 
-land_y = -1
+
+a = 0
+for point in range(1, len(surface)):
+    if surface[point][0] < x:
+        a = point
+
+b = a+1
+land_y = surface[a][1] + (x - surface[a][0]) * (surface[b][1] - surface[a][1]) / (surface[b][0] - surface[a][0])
 
 # game loop
 while True:
@@ -18,13 +27,6 @@ while True:
     x, y, h_speed, v_speed, fuel, rotate, power = [int(i) for i in input().split()]
 
     if land_y == -1:
-        a = 0
-        for point in range(1, len(surface)):
-            if surface[point][0] < x:
-                a = point
-        
-        b = a+1
-        land_y = surface[a][1] + (x - surface[a][0]) * (surface[b][1] - surface[a][1]) / (surface[b][0] - surface[a][0])
 
 
     # 2 integers: rotate power. rotate is the desired rotation angle (should be 0 for level 1), power is the desired thrust power (0 to 4).
