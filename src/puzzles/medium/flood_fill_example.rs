@@ -27,45 +27,35 @@ impl TowersRegistry {
     }
 }
 
-// Handle grid logic
-struct Grid {
-    grid: Vec::<String>
+// Add grid logic
+type Grid = Vec::<String>;
+
+trait GridLogic {
+    fn get(&self, x: usize, y: usize) -> char;
+
+    fn replace(&mut self, x: usize, y: usize, c: char);
 }
 
-impl Grid {
-    fn new() -> Grid {
-        Grid { grid: Vec::<String>::new() }
-    }
-
-    fn push(&mut self, line: String) {
-        self.grid.push(line)
-    }
-
+impl GridLogic for Grid {
     fn get(&self, x: usize, y: usize) -> char {
-        self.grid[y].chars().nth(x).unwrap()
+        self[y].chars().nth(x).unwrap()
     }
 
     fn replace(&mut self, x: usize, y: usize, c: char) {
-        self.grid[y].replace_range(x..x+1, c.to_string().as_str());
-    }
-
-    fn get_line(&self, y: usize) -> &String {
-        &self.grid[y]
+        self[y].replace_range(x..x+1, c.to_string().as_str());
     }
 }
 
-// Handle troops logic, notably simultaneous arrivals
-struct Troops {
-    troops: HashMap::<(usize, usize), char>
+// Add simultaneous arrivals logic to troops
+type Troops = HashMap::<(usize, usize), char>;
+
+trait TroopsLogic {
+    fn push(&mut self, x: usize, y: usize, uid: char);
 }
 
-impl Troops {
-    fn new() -> Troops {
-        Troops { troops:HashMap::<(usize, usize), char>::new() }
-    }
-
+impl TroopsLogic for Troops {
     fn push(&mut self, x: usize, y: usize, uid: char) {
-        match self.troops.entry((x,y)) {
+        match self.entry((x,y)) {
             Vacant(v) => {
                 v.insert(uid);
             },
@@ -75,10 +65,6 @@ impl Troops {
                 }
             }
         };
-    }
-
-    fn is_empty(&self) -> bool {
-        self.troops.is_empty()
     }
 }
 
@@ -120,7 +106,7 @@ fn main() {
         let mut next_troops = Troops::new();
 
         // Compute next troops (Manhattan geometry)
-        for ((x, y), t) in current_troops.troops {
+        for ((x, y), t) in current_troops {
             if x > 0 && grid.get(x - 1, y) == '.' {
                 next_troops.push(x - 1, y, t);
             }
@@ -136,7 +122,7 @@ fn main() {
         }
         
         // Deploy troops
-        for ((x, y), uid) in next_troops.troops.iter() {
+        for ((x, y), uid) in next_troops.iter() {
             grid.replace(*x, *y, *uid);
         }
  
@@ -146,8 +132,7 @@ fn main() {
     
     // Replace UIDs with actual IDs and print
     for y in 0..h as usize {
-        let line: String = grid
-            .get_line(y)
+        let line: String = grid[y]
             .chars()
             .map(|c: char| if c == '.' || c == '#' || c == '+' { c } else { towers.get(&c) }).
             collect();
