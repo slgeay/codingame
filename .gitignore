@@ -1,3 +1,4 @@
 /.cg_local_app
 /target
 /src/clash
+.cache
