@@ -151,6 +151,7 @@ impl Labyrinth {
     // We use a queue to visit all the neighbors of a cell before moving to the next one
     // This way, we ensure to find the shortest path
     // We also keep track of the previous cell of each visited cell to reconstruct the path
+    // (not necessary for the distance calculation, but most of the time we would want to know the path)
     // This algorithm is not optimal, but it's easy to implement and works well for small labyrinth
     fn breadth_first_search(&self, from: Vec2, to: Vec2) -> Vec<Vec2> {
         let mut path = Vec::<Vec2>::new();
@@ -158,9 +159,9 @@ impl Labyrinth {
         let mut queue = Vec::<Vec2>::new();
         queue.push(from);
 
-        // Normally we track visited cells, but we can save space by using the previous cell to know if we visited it
         let mut prev = vec![vec![None; self.size.x]; self.size.y];
 
+        // Normally we also track visited cells, but we can save space by using the previous cell to know if we visited it
         // We mark the starting cell as visited by setting its previous cell to itself
         prev[from.y][from.x] = Some(from);
 
@@ -213,7 +214,6 @@ impl Labyrinth {
         priority_queue.push((Reverse(0 + from.distance(to)), 0, from));
 
         let mut prev = vec![vec![None; self.size.x]; self.size.y];
-        // This time we need to track the distance walked to the cell
         prev[from.y][from.x] = Some(from);
 
         let mut steps = 0;
@@ -266,6 +266,7 @@ impl Labyrinth {
     }
 }
 
+// Display the labyrinth as a grid of cells
 impl std::fmt::Display for Labyrinth {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         for y in 0..self.size.y {
