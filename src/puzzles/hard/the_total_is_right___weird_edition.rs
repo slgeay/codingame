@@ -122,17 +122,17 @@ fn solve(n: i32, a: i32) -> i32 {
     for size in 2..=MAX_SOLUTION {
         let mut new_known: HashMap<i32, Expression> = HashMap::new();
         let mut new_known_per_size: Vec<i32> = Vec::new();
-        for operator in Operator::values() {
-            for left_size in 1..size {
-                let right_size = size - left_size;
-                if left_size > right_size && operator.is_commutative() {
-                    continue;
-                }
+        for left_size in 1..size {
+            let right_size = size - left_size;
+            for left in known_per_size.get(&left_size).unwrap() {
+                for right in known_per_size.get(&right_size).unwrap() {
+                    let left_value = *left;
+                    let right_value = *right;
 
-                for left in known_per_size.get(&left_size).unwrap() {
-                    for right in known_per_size.get(&right_size).unwrap() {
-                        let left_value = *left;
-                        let right_value = *right;
+                    for operator in Operator::values() {
+                        if left_size > right_size && operator.is_commutative() {
+                            continue;
+                        }
                         let result = operator.apply(left_value, right_value);
 
                         if result.is_none() {
